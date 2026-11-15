@@ -167,6 +167,7 @@ input, textarea { -webkit-user-select:text; user-select:text; }
 .cam .frame i:nth-child(2){ right:0; top:0; border-width:4px 4px 0 0; }
 .cam .frame i:nth-child(3){ left:0; bottom:0; border-width:0 0 4px 4px; }
 .cam .frame i:nth-child(4){ right:0; bottom:0; border-width:0 4px 4px 0; }
+.cam .stamp { position:absolute; left:12px; bottom:10px; font-weight:800; font-size:15px; line-height:1.35; color:#fff; text-shadow:0 1px 4px #000,0 0 8px #000; font-variant-numeric:tabular-nums; }
 .cam .hint { position:relative; text-align:center; padding:0 28px; font-size:13px; color:#DDE4FF; text-shadow:0 1px 6px #000; }
 .cam .bar { position:relative; display:flex; justify-content:center; align-items:center; gap:22px; padding:16px 20px calc(env(safe-area-inset-bottom,0px) + 24px); }
 .shutter { width:76px; height:84px; background:var(--frost); clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%); display:grid; place-items:center; }
@@ -310,7 +311,7 @@ function api(name) {
     google.script.run.withSuccessHandler(resolve).withFailureHandler(function (e) { reject(new Error((e && e.message) || String(e))); })[name].apply(google.script.run, args);
   });
 }
-var ds = { proofs: [], catches: [], redemptions: [], coins: 250, points: 0 };
+var ds = { proofs: [], catches: [], redemptions: [], coins: 250, points: 0, wild: [] };
 var REWARDS = [
   { id: 'drink', name: '카페 음료 쿠폰', desc: '교내 카페 음료 1잔', cost: 150 },
   { id: 'cafeteria1000', name: '학식 1,000원 쿠폰', desc: '학생식당 결제 시 1,000원 할인', cost: 300 },
@@ -322,6 +323,7 @@ var demo = {
   issueProofChallenge: function () { var t = ''; for (var i = 0; i < 32; i++) t += '0123456789abcdef'[Math.floor(Math.random() * 16)]; return { token: t, serverTime: Date.now(), expiresAt: Date.now() + 120000 }; },
   submitProof: function () { var np = { id: 'p' + ds.proofs.length, missionId: 'gym15', status: 'PENDING', captured: false, submittedAt: new Date().toString() }; ds.proofs.push(np); setTimeout(function () { np.status = 'APPROVED'; try { refresh(true); toast('승인됐어요! 번개 버튼으로 포획해 보세요.'); } catch (e) {} }, 4000); return { status: 'PENDING' }; },
   captureMonster: function () { ds.proofs.forEach(function (p) { if (p.status === 'APPROVED') p.captured = true; }); ds.catches.push({ missionId: 'gym15', monster: '에너지몬', coins: 50, points: 100 }); ds.coins += 50; ds.points += 100; return { monster: '에너지몬', coins: 50, points: 100 }; },
+  catchWild: function (u, id) { if (ds.wild.indexOf(id) >= 0) throw new Error('이미 잡은 몬스터예요.'); ds.wild.push(id); ds.catches.push({ missionId: 'wild', monster: '에너지몬', coins: 30, points: 0 }); ds.coins += 30; return { monster: '에너지몬', coins: 30, points: 0 }; },
   redeemReward: function (u, rid) { var it = REWARDS.filter(function (r) { return r.id === rid; })[0] || REWARDS[1]; if (ds.coins < it.cost) throw new Error('포인트가 부족해요. (' + it.cost + '포인트 필요)'); ds.coins -= it.cost; ds.redemptions.push({ rewardId: it.id, name: it.name, cost: it.cost, status: 'PENDING' }); return { status: 'PENDING' }; },
   linkStudent: function (u, sid, name) { return { studentId: sid, name: name }; }
 };
@@ -636,15 +638,15 @@ function pic(lock) { var u = thumb(lock); return u ? '<img src="' + u + '" alt="
 /* ===== AR 보기 / 포획 ===== */
 var ar = { stage: null, stream: null, canCapture: false, cameraOn: false, hintT: 0 };
 function isOpen(id) { return $(id).classList.contains('open'); }
-function openAR(canCapture) {
+function openAR(canCapture, wildId) {
   enableMotion();   // iOS는 터치 직후에만 센서 권한을 물어볼 수 있어서 가장 먼저 부른다
   if (!HAS3D) { if (canCapture) { directCapture(); } else { toast('3D 화면을 불러오지 못했어요. 인터넷 연결을 확인해 주세요.'); } return; }
   unmountHero();
-  ar.canCapture = canCapture; ar.cameraOn = false;
+  ar.canCapture = canCapture; ar.cameraOn = false; ar.wild = wildId || null;
   var L = $('ar'); L.classList.add('open');
   var bottom = canCapture ? '<button class="catch" type="button" data-act="arcatch" aria-label="포획"><span>포획</span></button>' : '<p class="arnote">인증이 승인되면 여기서 포획할 수 있어요.</p>';
   L.innerHTML = '<div class="arbg" id="arBg"><div class="envbg"></div></div><div class="arhost" id="arHost"></div>' +
-    '<div class="top"><button class="x" type="button" data-act="arclose" aria-label="닫기">✕</button><div class="pill"><b>에너지몬</b><span>' + (canCapture ? '+50포인트' : '도감 몬스터') + '</span></div>' +
+    '<div class="top"><button class="x" type="button" data-act="arclose" aria-label="닫기">✕</button><div class="pill"><b>에너지몬</b><span>' + (canCapture ? (wildId ? '+30포인트' : '+50포인트') : '도감 몬스터') + '</span></div>' +
     '<button class="x" type="button" data-act="artoggle" id="arCam" aria-label="카메라 켜고 끄기">AR</button></div>' +
     '<p class="arhint" id="arHint"></p><div class="bar">' + bottom + '</div>';
   try { ar.stage = new Stage3D($('arHost'), { ar: true }); ar.stage.setEnv(true); }
@@ -684,7 +686,7 @@ function closeAR() {
 }
 function approvedProofId() { var p = todayProof(); return p ? String(p.id) : ''; }
 async function directCapture() {
-  try { var r = await api('captureMonster', me.userId, approvedProofId()); toast(r.monster + ' 포획! ' + (r.coins != null ? r.coins : r.points) + '포인트를 받았어요.'); }
+  try { var r = ar.wild ? await api('catchWild', me.userId, ar.wild) : await api('captureMonster', me.userId, approvedProofId()); toast(r.monster + ' 포획! ' + (r.coins != null ? r.coins : r.points) + '포인트를 받았어요.'); }
   catch (e) { toast(e.message); }
   await refresh(true);
 }
@@ -692,7 +694,7 @@ async function arCatch() {
   var b = document.querySelector('[data-act=arcatch]'); if (!b || b.disabled) return;
   b.disabled = true; b.firstChild.textContent = '...';
   try {
-    var r = await api('captureMonster', me.userId, approvedProofId());
+    var r = ar.wild ? await api('catchWild', me.userId, ar.wild) : await api('captureMonster', me.userId, approvedProofId());
     if (ar.stage) await ar.stage.catchAnim();
     closeAR(); toast(r.monster + ' 포획! ' + (r.coins != null ? r.coins : r.points) + '포인트를 받았어요.');
   } catch (e) { b.disabled = false; b.firstChild.textContent = '포획'; toast(e.message); }
@@ -812,6 +814,7 @@ function badgeTex(kind, c1, c2) {
 }
 var MAP_SPAWNS = [
   { at: '학생회관', dx: 16, dy: 14, mission: true, label: '에너지몬' },
+  { at: '정문', dx: 30, dy: -6, wild: true, id: 'w1', label: '야생 에너지몬' },
   { at: '광개토관', dx: -14, dy: 12, label: '???' }, { at: '대양홀', dx: 18, dy: -14, label: '???' }, { at: '박물관', dx: 16, dy: 12, label: '???' }
 ];
 
@@ -922,12 +925,13 @@ function MapStage(host) {
   this.spawns = [];
   MAP_SPAWNS.forEach(function (sp) {
     var b = M.by[sp.at]; if (!b) return;
+    if (sp.wild && (data.wild || []).indexOf(sp.id) >= 0) return;
     var base = self.sp[sp.at] || b.c, pf = mFree(M, base[0] + sp.dx, base[1] + sp.dy, 0);
-    var mon = buildMonster(!sp.mission), g = new THREE.Group(); mon.group.scale.setScalar(2.1); mon.group.position.y = 3.2; g.add(mon.group);
-    var ring = new THREE.Mesh(new THREE.RingGeometry(4.6, 5.2, 24), new THREE.MeshBasicMaterial({ color: sp.mission ? 0xFFB534 : 0xFFFFFF, transparent: true, opacity: 0.75, side: THREE.DoubleSide, depthWrite: false })); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.5; g.add(ring);
-    g.position.set(pf[0], 0, -pf[1]); g.scale.setScalar(2.1); g.userData = { kind: 'mon', mission: !!sp.mission, label: sp.label, at: sp.at };
+    var mon = buildMonster(!(sp.mission || sp.wild)), g = new THREE.Group(); mon.group.scale.setScalar(2.1); mon.group.position.y = 3.2; g.add(mon.group);
+    var ring = new THREE.Mesh(new THREE.RingGeometry(4.6, 5.2, 24), new THREE.MeshBasicMaterial({ color: sp.mission ? 0xFFB534 : (sp.wild ? 0x7FFFD0 : 0xFFFFFF), transparent: true, opacity: 0.75, side: THREE.DoubleSide, depthWrite: false })); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.5; g.add(ring);
+    g.position.set(pf[0], 0, -pf[1]); g.scale.setScalar(2.1); g.userData = { kind: 'mon', mission: !!sp.mission, wild: !!sp.wild, id: sp.id, label: sp.label, at: sp.at };
     sc.add(g); self.spawns.push({ g: g, mon: mon, ring: ring, mission: !!sp.mission }); self.pick.push(g);
-    self.addLabel(sp.label, g.position, 34, sp.mission ? 'm mon' : 'mon');
+    self.addLabel(sp.label, g.position, 34, (sp.mission || sp.wild) ? 'm mon' : 'mon');
   });
 
   // 아바타
@@ -980,6 +984,7 @@ MapStage.prototype.tap = function (cx, cy) {
     var o = hits[0].object; while (o && !o.userData.kind) o = o.parent;
     if (o) {
       if (o.userData.mission) { openDetail(); return; }
+      if (o.userData.wild) { openWild(o.userData.id, o.position); return; }
       openInfo(o.userData.kind, o.userData.id || o.userData.at);
       return;
     }
@@ -1039,7 +1044,7 @@ function unmountMap() { if (mapStage) { mapStage.dispose(); mapStage = null; } }
 function mapUpdateChip(d) {
   var el = $('mapDist'); if (!el) return;
   el.textContent = d < 45 ? '학생회관에 도착했어요' : '학생회관까지 ' + (d >= 1000 ? (d / 1000).toFixed(1) + 'km' : Math.round(d) + 'm');
-  var h = $('mapHint'); if (h) h.textContent = (mapState.gps === 'on' || !IS_DEMO) ? '' : '지도를 눌러 걸어 보세요 (시연)';
+  var h = $('mapHint'); if (h) h.textContent = (mapState.gps === 'on' || !IS_DEMO) ? '' : '지도를 눌러 걸어 보세요';
   var b = $('mapLoc'); if (b) { b.classList.toggle('on', mapState.gps === 'on'); b.setAttribute('aria-label', { off: '내 위치 켜기', wait: '위치 찾는 중', on: '내 위치 사용 중', denied: '위치 허용 필요', outside: '캠퍼스 밖 (시연)' }[mapState.gps]); }
 }
 function mapLocate() {
@@ -1100,6 +1105,14 @@ function openInfo(kind, id) {
       '<button type="button" class="btn" data-act="infoclose">닫기</button></div>';
   }
   $('infoBody').innerHTML = h; $('infoSheet').classList.add('open');
+}
+function openWild(id, pos) {
+  var d = Math.round(Math.hypot(mapState.x - pos.x, mapState.z - pos.z)), near = d <= 60;
+  $('infoBody').innerHTML = '<div class="info"><h3>야생 에너지몬</h3><div class="sub"><span class="tagx">길에서 만난 몬스터</span>여기서 약 ' + d + ' m</div>' +
+    '<div class="box">걷다가 만난 몬스터예요. 사진 인증 없이 바로 잡을 수 있어요. 잡으면 30포인트를 받아요.</div>' +
+    (near ? '<button type="button" class="btn gold" data-act="wildgo" data-id="' + id + '">잡으러 가기</button>' : '<div class="box">' + (d - 60) + ' m 더 가까이 가면 잡을 수 있어요.</div>') +
+    '<button type="button" class="btn ghost" data-act="infoclose" style="margin-top:10px">닫기</button></div>';
+  $('infoSheet').classList.add('open');
 }
 function openNews() {
   var ms = todayStage(), line = ms === 'none' ? '오늘의 미션을 아직 시작하지 않았어요. 학생회관에서 운동 인증을 해 보세요.' : (ms === 'approved' ? '운영자가 승인했어요. 가운데 번개 버튼으로 몬스터를 포획해 보세요.' : (ms === 'done' ? '오늘의 미션을 모두 끝냈어요.' : '인증 사진을 운영자가 확인하고 있어요.'));
@@ -1292,15 +1305,22 @@ async function openCamera() {
   }
   var code = cam.challenge.token.slice(-4).toUpperCase();
   L.innerHTML = feed + '<div class="top"><button class="x" type="button" data-act="camclose" aria-label="닫기">✕</button><div class="code"><b>' + code + '</b><span id="left">남은 시간 2:00</span></div></div>' +
-    '<div class="frame"><i></i><i></i><i></i><i></i></div><p class="hint">운동 중인 모습이나 운동 장소가 보이게 찍어 주세요.' + ((IS_DEMO && !cam.real) ? '<br>(카메라를 켤 수 없어 시안 화면으로 보여요)' : '') + '</p>' +
+    '<div class="frame"><i></i><i></i><i></i><i></i><div class="stamp" id="stamp"></div></div><p class="hint">운동 중인 모습이나 운동 장소가 보이게 찍어 주세요.' + ((IS_DEMO && !cam.real) ? '<br>(카메라를 켤 수 없어 시안 화면으로 보여요)' : '') + '</p>' +
     '<div class="bar"><button class="shutter" type="button" data-act="shoot" aria-label="촬영"></button></div>';
   if (cam.real) { var v = $('vid'); v.srcObject = cam.stream; v.play().catch(function () {}); }
   clearInterval(cam.timer);
+  cam.offset = cam.challenge.serverTime ? cam.challenge.serverTime - Date.now() : 0;
+  var st0 = $('stamp'); if (st0) st0.textContent = stampNow();
   cam.timer = setInterval(function () {
+    var stEl = $('stamp'); if (stEl) stEl.textContent = stampNow();
     var s = Math.max(0, Math.round((cam.challenge.expiresAt - Date.now()) / 1000)), el = $('left');
     if (el) el.textContent = '남은 시간 ' + Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2);
     if (s <= 0) { closeCamera(); toast('시간이 지났어요. 카메라를 다시 켜 주세요.'); }
   }, 500);
+}
+function stampNow() {
+  var d = new Date(Date.now() + (cam.offset || 0)), z = function (n) { return ('0' + n).slice(-2); };
+  return d.getFullYear() + '.' + z(d.getMonth() + 1) + '.' + z(d.getDate()) + ' (' + '일월화수목금토'.charAt(d.getDay()) + ') ' + z(d.getHours()) + ':' + z(d.getMinutes()) + ':' + z(d.getSeconds());
 }
 function closeCamera() {
   clearInterval(cam.timer);
@@ -1315,9 +1335,12 @@ function shoot() {
     var k = Math.min(1, 960 / v.videoWidth); c.width = Math.round(v.videoWidth * k); c.height = Math.round(v.videoHeight * k);
     ctx = c.getContext('2d'); ctx.drawImage(v, 0, 0, c.width, c.height);
   }
+  var fs = Math.max(16, Math.round(c.width / 32)), tx = stampNow(), cd = cam.challenge.token.slice(-4).toUpperCase();
+  ctx.font = '800 ' + fs + 'px sans-serif'; ctx.textBaseline = 'bottom'; ctx.lineJoin = 'round'; ctx.lineWidth = Math.round(fs / 4); ctx.strokeStyle = 'rgba(0,0,0,.85)'; ctx.fillStyle = '#fff';
+  [[tx, c.height - fs * 2.6], ['인증코드 ' + cd, c.height - fs * 1.35]].forEach(function (l) { ctx.strokeText(l[0], fs * 0.6, l[1] + fs * 1.15); ctx.fillText(l[0], fs * 0.6, l[1] + fs * 1.15); });
   cam.shot = { url: c.toDataURL('image/jpeg', 0.8), at: Date.now() };
   var L = $('cam');
-  L.innerHTML = '<img class="feed" alt="촬영한 인증 사진" src="' + cam.shot.url + '"><div class="top"><button class="x" type="button" data-act="camclose" aria-label="닫기">✕</button></div><div style="flex:1"></div>' +
+  L.innerHTML = '<img class="feed" style="object-fit:contain;background:#000" alt="촬영한 인증 사진" src="' + cam.shot.url + '"><div class="top"><button class="x" type="button" data-act="camclose" aria-label="닫기">✕</button></div><div style="flex:1"></div>' +
     '<div class="bar" style="flex-direction:column;align-items:stretch;gap:0"><button class="btn gold" type="button" data-act="submit">이 사진으로 제출하기</button><button class="btn ghost" type="button" data-act="retake" style="margin-top:10px">다시 찍기</button></div>';
 }
 async function submitShot() {
@@ -1374,6 +1397,7 @@ document.addEventListener('click', function (e) {
   else if (a === 'monopen') openDetail();
   else if (a === 'mapbell') openNews();
   else if (a === 'infoclose') $('infoSheet').classList.remove('open');
+  else if (a === 'wildgo') { $('infoSheet').classList.remove('open'); openAR(true, t.dataset.id); }
   else if (a === 'mapmain') { var ms = todayStage(); if (ms === 'none') openCamera(); else if (ms === 'approved') capture(); else openDetail(); }
   else if (a === 'monclose') closeDetail();
   else if (a === 'mapnorth') mapState.yaw = 0;
