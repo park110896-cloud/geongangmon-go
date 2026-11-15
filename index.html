@@ -110,6 +110,10 @@ h2 { font-family:var(--display); font-weight:400; font-size:20px; letter-spacing
 .slot.have { background:linear-gradient(160deg,#2B38A8,#1B2257); }
 
 /* 보상 */
+.buy { flex:none; min-width:84px; padding:8px 10px 7px; border:0; background:#222A6E; color:var(--mute); text-align:center; font-weight:700; }
+.buy b { display:block; font-size:15px; } .buy span { font-size:11px; }
+.buy.can { background:linear-gradient(160deg,#FFD27A,var(--amber)); color:#3A2600; }
+.buy:disabled { opacity:.9; }
 .coin { display:flex; align-items:baseline; gap:8px; }
 .coin strong { font-family:var(--display); font-weight:400; font-size:48px; line-height:1; color:var(--amber); }
 .gauge { display:grid; grid-template-columns:repeat(10,1fr); gap:3px; margin:12px 0 6px; }
@@ -306,14 +310,19 @@ function api(name) {
     google.script.run.withSuccessHandler(resolve).withFailureHandler(function (e) { reject(new Error((e && e.message) || String(e))); })[name].apply(google.script.run, args);
   });
 }
-var ds = { proofs: [], catches: [], redemptions: [], coins: 0, points: 0 };
+var ds = { proofs: [], catches: [], redemptions: [], coins: 250, points: 0 };
+var REWARDS = [
+  { id: 'drink', name: '카페 음료 쿠폰', desc: '교내 카페 음료 1잔', cost: 150 },
+  { id: 'cafeteria1000', name: '학식 1,000원 쿠폰', desc: '학생식당 결제 시 1,000원 할인', cost: 300 },
+  { id: 'gym', name: '체육관 1일 이용권', desc: '교내 체육시설 하루 이용', cost: 500 }
+];
 var demo = {
   startGuest: function () { return { userId: 'hm_demo_' + Math.random().toString(36).slice(2, 14), name: '게스트', studentId: '' }; },
   getGameState: function () { return JSON.parse(JSON.stringify(ds)); },
   issueProofChallenge: function () { var t = ''; for (var i = 0; i < 32; i++) t += '0123456789abcdef'[Math.floor(Math.random() * 16)]; return { token: t, serverTime: Date.now(), expiresAt: Date.now() + 120000 }; },
   submitProof: function () { var np = { id: 'p' + ds.proofs.length, missionId: 'gym15', status: 'PENDING', captured: false, submittedAt: new Date().toString() }; ds.proofs.push(np); setTimeout(function () { np.status = 'APPROVED'; try { refresh(true); toast('승인됐어요! 번개 버튼으로 포획해 보세요.'); } catch (e) {} }, 4000); return { status: 'PENDING' }; },
   captureMonster: function () { ds.proofs.forEach(function (p) { if (p.status === 'APPROVED') p.captured = true; }); ds.catches.push({ missionId: 'gym15', monster: '에너지몬', coins: 50, points: 100 }); ds.coins += 50; ds.points += 100; return { monster: '에너지몬', coins: 50, points: 100 }; },
-  redeemReward: function () { if (ds.coins < 300) throw new Error('코인이 부족해요. (300코인 필요)'); ds.coins -= 300; ds.redemptions.push({ rewardId: 'cafeteria1000', cost: 300, status: 'PENDING' }); return { status: 'PENDING' }; },
+  redeemReward: function (u, rid) { var it = REWARDS.filter(function (r) { return r.id === rid; })[0] || REWARDS[1]; if (ds.coins < it.cost) throw new Error('포인트가 부족해요. (' + it.cost + '포인트 필요)'); ds.coins -= it.cost; ds.redemptions.push({ rewardId: it.id, name: it.name, cost: it.cost, status: 'PENDING' }); return { status: 'PENDING' }; },
   linkStudent: function (u, sid, name) { return { studentId: sid, name: name }; }
 };
 
@@ -635,7 +644,7 @@ function openAR(canCapture) {
   var L = $('ar'); L.classList.add('open');
   var bottom = canCapture ? '<button class="catch" type="button" data-act="arcatch" aria-label="포획"><span>포획</span></button>' : '<p class="arnote">인증이 승인되면 여기서 포획할 수 있어요.</p>';
   L.innerHTML = '<div class="arbg" id="arBg"><div class="envbg"></div></div><div class="arhost" id="arHost"></div>' +
-    '<div class="top"><button class="x" type="button" data-act="arclose" aria-label="닫기">✕</button><div class="pill"><b>에너지몬</b><span>' + (canCapture ? '+100포인트' : '도감 몬스터') + '</span></div>' +
+    '<div class="top"><button class="x" type="button" data-act="arclose" aria-label="닫기">✕</button><div class="pill"><b>에너지몬</b><span>' + (canCapture ? '+50포인트' : '도감 몬스터') + '</span></div>' +
     '<button class="x" type="button" data-act="artoggle" id="arCam" aria-label="카메라 켜고 끄기">AR</button></div>' +
     '<p class="arhint" id="arHint"></p><div class="bar">' + bottom + '</div>';
   try { ar.stage = new Stage3D($('arHost'), { ar: true }); ar.stage.setEnv(true); }
@@ -675,7 +684,7 @@ function closeAR() {
 }
 function approvedProofId() { var p = todayProof(); return p ? String(p.id) : ''; }
 async function directCapture() {
-  try { var r = await api('captureMonster', me.userId, approvedProofId()); toast(r.monster + ' 포획! 포인트 ' + r.points + '점을 받았어요.'); }
+  try { var r = await api('captureMonster', me.userId, approvedProofId()); toast(r.monster + ' 포획! ' + (r.coins != null ? r.coins : r.points) + '포인트를 받았어요.'); }
   catch (e) { toast(e.message); }
   await refresh(true);
 }
@@ -685,7 +694,7 @@ async function arCatch() {
   try {
     var r = await api('captureMonster', me.userId, approvedProofId());
     if (ar.stage) await ar.stage.catchAnim();
-    closeAR(); toast(r.monster + ' 포획! 포인트 ' + r.points + '점을 받았어요.');
+    closeAR(); toast(r.monster + ' 포획! ' + (r.coins != null ? r.coins : r.points) + '포인트를 받았어요.');
   } catch (e) { b.disabled = false; b.firstChild.textContent = '포획'; toast(e.message); }
   await refresh(true);
 }
@@ -1135,7 +1144,7 @@ function renderHud() {
   var segs = ''; for (var i = 0; i < 10; i++) segs += '<i class="' + (i < xpOn() ? 'on' : '') + '"></i>';
   $('hud').innerHTML = '<div class="lv"><div><small>Lv</small>' + level() + '</div></div>' +
     '<div class="who"><b>' + esc(me ? me.name : '게스트') + '</b><div class="xp">' + segs + '</div></div>' +
-    '<div class="wallet"><span class="chip">' + data.coins + ' 코인</span><span class="chip p">' + data.points + ' 포인트</span></div>';
+    '<div class="wallet"><span class="chip">' + data.coins + ' 포인트</span></div>';
 }
 function renderNav() {
   $('nav').innerHTML = TABS.map(function (t) {
@@ -1197,17 +1206,22 @@ function viewDex() {
 }
 
 function viewGift() {
-  var need = 300, on = Math.min(10, Math.floor(data.coins / 30));
-  var g = ''; for (var i = 0; i < 10; i++) g += '<i class="' + (i < on ? 'on' : '') + '"></i>';
-  var can = data.coins >= need;
+  var bal = data.coins;
   var hist = data.redemptions.length ? '<div class="rows">' + data.redemptions.slice().reverse().map(function (r) {
-    return '<div class="row"><div class="t"><b>학식 쿠폰</b><span class="muted">' + r.cost + '코인 사용</span></div><span class="tag ' + (String(r.status).toUpperCase() === 'DONE' ? 'ok' : 'wait') + '">' + (String(r.status).toUpperCase() === 'DONE' ? '지급 완료' : '처리 중') + '</span></div>';
+    var done = String(r.status).toUpperCase() === 'DONE';
+    return '<div class="row"><div class="t"><b>' + esc(r.name || '학식 1,000원 쿠폰') + '</b><span class="muted">' + r.cost + '포인트 사용</span></div><span class="tag ' + (done ? 'ok' : 'wait') + '">' + (done ? '지급 완료' : '처리 중') + '</span></div>';
   }).join('') + '</div>' : '<p class="muted">아직 교환한 보상이 없어요.</p>';
-  var label = !can ? (need - data.coins) + '코인 더 모으면 교환할 수 있어요' : '학식 쿠폰으로 교환하기';
+  var items = REWARDS.map(function (it) {
+    var can = bal >= it.cost;
+    return '<div class="row"><div class="ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="miter">' + ICON.gift + '</svg></div><div class="t"><b>' + esc(it.name) + '</b><span class="muted">' + esc(it.desc) + '</span></div>' +
+      '<button type="button" class="buy ' + (can ? 'can' : '') + '" data-act="redeem" data-rid="' + it.id + '"' + (can ? '' : ' disabled') + '><b>' + it.cost + 'P</b><span>' + (can ? '교환하기' : (it.cost - bal) + 'P 부족') + '</span></button></div>';
+  }).join('');
+  var next = REWARDS.filter(function (r) { return r.cost > bal; })[0];
+  var on = next ? Math.min(10, Math.floor(bal / next.cost * 10)) : 10, g = ''; for (var i = 0; i < 10; i++) g += '<i class="' + (i < on ? 'on' : '') + '"></i>';
   return '<h1>보상</h1>' +
-    '<section class="panel" style="margin-top:14px"><div style="padding:18px"><p class="muted">내 코인</p><div class="coin"><strong>' + data.coins + '</strong><span class="muted">/ ' + need + '</span></div><div class="gauge">' + g + '</div>' +
-    '<h2 style="font-size:18px">학식 1,000원 쿠폰</h2><p class="muted">300코인으로 바꿀 수 있어요.</p>' +
-    '<button class="btn ' + (can ? 'gold' : 'ghost') + '" type="button" data-act="redeem"' + (can ? '' : ' disabled') + '>' + label + '</button></div></section>' +
+    '<section class="panel" style="margin-top:14px"><div style="padding:18px"><p class="muted">내 포인트</p><div class="coin"><strong>' + bal + '</strong><span class="muted">P</span></div><div class="gauge">' + g + '</div>' +
+    '<p class="muted">' + (next ? next.name + '까지 ' + (next.cost - bal) + 'P 남았어요.' : '모든 보상을 바꿀 수 있어요.') + '</p></div></section>' +
+    '<section class="sec"><h2>포인트로 바꾸기</h2><div class="rows">' + items + '</div><p class="muted" style="margin-top:10px;font-size:12px">시범운영 보상 예시예요. 실제 보상은 운영 시작 전에 정해져요.</p></section>' +
     '<section class="sec"><h2>교환 내역</h2>' + hist + '</section>';
 }
 
@@ -1219,7 +1233,7 @@ function viewMe() {
     '</div></section>' +
     '<section class="sec"><h2>알아두세요</h2><div class="rows">' +
     '<div class="row"><div class="t"><b>인증 사진</b><span class="muted">미션 인증 사진은 운영자 확인에만 쓰여요.</span></div></div>' +
-    '<div class="row"><div class="t"><b>포인트</b><span class="muted">운영자 승인 후에만 쌓여요.</span></div></div></div></section>';
+    '<div class="row"><div class="t"><b>포인트</b><span class="muted">운영자 승인 후에만 쌓여요. 보상으로 바꿀 수 있어요.</span></div></div></div></section>';
 }
 
 function render() {
@@ -1314,8 +1328,8 @@ async function submitShot() {
   } catch (e) { if (b) { b.disabled = false; b.textContent = '이 사진으로 제출하기'; } toast(e.message); }
 }
 function capture() { openAR(true); }
-async function redeem() {
-  try { await api('redeemReward', me.userId); toast('교환을 신청했어요. 운영자가 처리하면 알려 드릴게요.'); }
+async function redeem(rid) {
+  try { await api('redeemReward', me.userId, rid); toast('교환을 신청했어요. 운영자가 처리하면 알려 드릴게요.'); }
   catch (e) { toast(e.message); }
   await refresh(true);
 }
@@ -1369,7 +1383,7 @@ document.addEventListener('click', function (e) {
   else if (a === 'artoggle') toggleArCamera();
   else if (a === 'arcatch') arCatch();
   else if (a === 'motion') { enableMotion().then(function () { t.remove(); }); }
-  else if (a === 'redeem') redeem();
+  else if (a === 'redeem') redeem(t.dataset.rid);
   else if (a === 'link') openLink();
   else if (a === 'linkgo') doLink();
   else if (a === 'linkclose') $('linkSheet').classList.remove('open');
