@@ -283,7 +283,6 @@ main.map { padding:0; overflow:hidden; display:flex; flex-direction:column; }
     <h1>건강몬 GO</h1>
     <p>운동하고 인증하면 몬스터가 나타나요.<br>세종대 캠퍼스에서 모으고, 포인트로 바꿔요.</p>
     <button class="btn" id="startBtn" type="button">바로 시작하기</button>
-    <small>학번은 포인트를 보상으로 바꿀 때만 입력해요.</small>
   </div>
 
   <div class="layer sheet" id="infoSheet" role="dialog" aria-modal="true" aria-label="안내"><div class="in" id="infoBody"></div></div>
@@ -1204,7 +1203,7 @@ function viewGift() {
   var hist = data.redemptions.length ? '<div class="rows">' + data.redemptions.slice().reverse().map(function (r) {
     return '<div class="row"><div class="t"><b>학식 쿠폰</b><span class="muted">' + r.cost + '코인 사용</span></div><span class="tag ' + (String(r.status).toUpperCase() === 'DONE' ? 'ok' : 'wait') + '">' + (String(r.status).toUpperCase() === 'DONE' ? '지급 완료' : '처리 중') + '</span></div>';
   }).join('') + '</div>' : '<p class="muted">아직 교환한 보상이 없어요.</p>';
-  var label = !can ? (need - data.coins) + '코인 더 모으면 교환할 수 있어요' : (me && me.studentId ? '학식 쿠폰으로 교환하기' : '학번 연결하고 교환하기');
+  var label = !can ? (need - data.coins) + '코인 더 모으면 교환할 수 있어요' : '학식 쿠폰으로 교환하기';
   return '<h1>보상</h1>' +
     '<section class="panel" style="margin-top:14px"><div style="padding:18px"><p class="muted">내 코인</p><div class="coin"><strong>' + data.coins + '</strong><span class="muted">/ ' + need + '</span></div><div class="gauge">' + g + '</div>' +
     '<h2 style="font-size:18px">학식 1,000원 쿠폰</h2><p class="muted">300코인으로 바꿀 수 있어요.</p>' +
@@ -1216,9 +1215,8 @@ function viewMe() {
   var linked = me && me.studentId;
   var masked = linked ? me.studentId.slice(0, 2) + '****' + me.studentId.slice(-2) : '';
   return '<h1>내 정보</h1>' +
-    '<section class="panel" style="margin-top:14px"><div style="padding:18px"><h2 style="font-size:18px">' + (linked ? esc(me.name) + ' 님' : '게스트로 플레이 중') + '</h2>' +
-    '<p class="muted" style="margin-top:4px">' + (linked ? '학번 ' + esc(masked) + ' 연결됨. 보상을 교환할 수 있어요.' : '지금 기록은 이 기기에 저장돼요. 학번을 연결하면 보상을 교환할 수 있어요.') + '</p>' +
-    (linked ? '' : '<button class="btn" type="button" data-act="link">학번 연결하기</button>') + '</div></section>' +
+    '<section class="panel" style="margin-top:14px"><div style="padding:18px"><h2 style="font-size:18px">' + (linked ? esc(me.name) + ' 님' : '게스트') + '</h2>' +
+    '</div></section>' +
     '<section class="sec"><h2>알아두세요</h2><div class="rows">' +
     '<div class="row"><div class="t"><b>인증 사진</b><span class="muted">미션 인증 사진은 운영자 확인에만 쓰여요.</span></div></div>' +
     '<div class="row"><div class="t"><b>포인트</b><span class="muted">운영자 승인 후에만 쌓여요.</span></div></div></div></section>';
@@ -1317,7 +1315,6 @@ async function submitShot() {
 }
 function capture() { openAR(true); }
 async function redeem() {
-  if (!me.studentId) { openLink(); return; }
   try { await api('redeemReward', me.userId); toast('교환을 신청했어요. 운영자가 처리하면 알려 드릴게요.'); }
   catch (e) { toast(e.message); }
   await refresh(true);
