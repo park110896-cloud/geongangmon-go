@@ -1265,22 +1265,22 @@ async function openCamera() {
     cam.challenge = await api('issueProofChallenge', me.userId, 'gym15');
   } catch (e) { closeCamera(); toast(e.message); return; }
   var feed = '';
-  if (IS_DEMO) {
-    feed = '<div class="feed"></div>';
-  } else {
-    try {
-      cam.stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: 'environment' } } });
-      feed = '<video class="feed" id="vid" autoplay muted playsinline></video>';
-    } catch (e) {
+  cam.real = false;
+  try {
+    cam.stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: 'environment' } } });
+    feed = '<video class="feed" id="vid" autoplay muted playsinline></video>'; cam.real = true;
+  } catch (e) {
+    if (IS_DEMO) { feed = '<div class="feed"></div>'; }
+    else {
       L.innerHTML = '<div class="top"><button class="x" type="button" data-act="camclose" aria-label="닫기">✕</button></div><div class="state"><p style="color:var(--bad)">카메라를 켜지 못했어요.</p><p class="muted" style="margin-top:6px">브라우저의 카메라 권한을 허용한 뒤 다시 눌러 주세요. 오류: ' + esc(e.name || e.message) + '</p></div>';
       return;
     }
   }
   var code = cam.challenge.token.slice(-4).toUpperCase();
   L.innerHTML = feed + '<div class="top"><button class="x" type="button" data-act="camclose" aria-label="닫기">✕</button><div class="code"><b>' + code + '</b><span id="left">남은 시간 2:00</span></div></div>' +
-    '<div class="frame"><i></i><i></i><i></i><i></i></div><p class="hint">운동 중인 모습이나 운동 장소가 보이게 찍어 주세요.' + (IS_DEMO ? '<br>(시안 화면이라 실제 카메라는 켜지지 않아요)' : '') + '</p>' +
+    '<div class="frame"><i></i><i></i><i></i><i></i></div><p class="hint">운동 중인 모습이나 운동 장소가 보이게 찍어 주세요.' + ((IS_DEMO && !cam.real) ? '<br>(카메라를 켤 수 없어 시안 화면으로 보여요)' : '') + '</p>' +
     '<div class="bar"><button class="shutter" type="button" data-act="shoot" aria-label="촬영"></button></div>';
-  if (!IS_DEMO) { var v = $('vid'); v.srcObject = cam.stream; v.play().catch(function () {}); }
+  if (cam.real) { var v = $('vid'); v.srcObject = cam.stream; v.play().catch(function () {}); }
   clearInterval(cam.timer);
   cam.timer = setInterval(function () {
     var s = Math.max(0, Math.round((cam.challenge.expiresAt - Date.now()) / 1000)), el = $('left');
@@ -1295,7 +1295,7 @@ function closeCamera() {
 }
 function shoot() {
   var c = document.createElement('canvas'), ctx;
-  if (IS_DEMO) { c.width = 640; c.height = 480; ctx = c.getContext('2d'); ctx.fillStyle = '#2F3FB8'; ctx.fillRect(0, 0, 640, 480); }
+  if (!cam.real) { c.width = 640; c.height = 480; ctx = c.getContext('2d'); ctx.fillStyle = '#2F3FB8'; ctx.fillRect(0, 0, 640, 480); }
   else {
     var v = $('vid'); if (!v || !v.videoWidth) { toast('카메라 화면이 아직 준비되지 않았어요.'); return; }
     var k = Math.min(1, 960 / v.videoWidth); c.width = Math.round(v.videoWidth * k); c.height = Math.round(v.videoHeight * k);
