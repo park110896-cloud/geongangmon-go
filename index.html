@@ -1,0 +1,1411 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>건강몬 GO | 세종대학교 건강 미션</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<style>
+:root {
+  --ink:#0E1330; --ink2:#141A42; --panel:#1B2257; --panel2:#232B6B; --line:#3A4690;
+  --indigo:#2F3FB8; --indigo-d:#1B2380; --violet:#7B5BE0; --violet-d:#4A32A8;
+  --frost:#E6ECFF; --mute:#9AA6D8; --amber:#FFB534; --amber-d:#B87A00;
+  --ok:#43D6B0; --bad:#FF7A90;
+  --display:'Black Han Sans','Noto Sans KR','Noto Sans CJK KR','Noto Sans CJK JP',sans-serif;
+  --body:'Noto Sans KR','Noto Sans CJK KR','Noto Sans CJK JP',system-ui,sans-serif;
+  --c:14px;
+}
+* { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+html, body { height:100%; background:#080B20; color:var(--frost); font-family:var(--body); font-size:15px; line-height:1.5; }
+button { font:inherit; color:inherit; border:0; background:none; cursor:pointer; }
+input { font:inherit; color:inherit; }
+:focus-visible { outline:2px solid var(--amber); outline-offset:2px; }
+
+#app { position:relative; max-width:440px; height:100dvh; margin:0 auto; display:flex; flex-direction:column; overflow:hidden;
+  background:linear-gradient(180deg,#121A4E 0%, var(--ink) 46%, #0A0E26 100%); }
+.shards { position:absolute; inset:0; pointer-events:none; overflow:hidden; }
+.shards i { position:absolute; display:block; }
+.shards i:nth-child(1){ left:-20%; top:-6%; width:90%; height:340px; background:linear-gradient(135deg,#3446C9,#1B2380); clip-path:polygon(0 0,100% 10%,38% 100%); opacity:.55; }
+.shards i:nth-child(2){ right:-24%; top:90px; width:80%; height:360px; background:linear-gradient(200deg,#8B6BEE,#3A2A93); clip-path:polygon(100% 0,100% 100%,0 62%); opacity:.38; }
+.shards i:nth-child(3){ left:12%; top:240px; width:70%; height:260px; background:linear-gradient(160deg,#2F3FB8,#141A42); clip-path:polygon(0 30%,100% 0,64% 100%); opacity:.35; }
+
+/* 공통 각진 패널: 좌상단·우하단만 깎음 */
+.cut { clip-path:polygon(var(--c) 0,100% 0,100% calc(100% - var(--c)),calc(100% - var(--c)) 100%,0 100%,0 var(--c)); }
+.panel { position:relative; --c:16px; background:linear-gradient(135deg,#4A58D6,#2A3290 60%,#3A2A93); }
+.panel::before { content:""; position:absolute; inset:1px; background:linear-gradient(160deg,#1F2870,var(--panel)); clip-path:polygon(calc(var(--c) - .41px) 0,100% 0,100% calc(100% - var(--c) + .41px),calc(100% - var(--c) + .41px) 100%,0 100%,0 calc(var(--c) - .41px)); }
+.panel > * { position:relative; }
+
+/* 상단 HUD */
+.hud { position:relative; z-index:2; display:flex; align-items:center; gap:12px; padding:calc(env(safe-area-inset-top,0px) + 12px) 16px 10px; }
+.lv { width:48px; height:52px; flex:none; display:grid; place-items:center; font-family:var(--display); font-size:19px; line-height:1; color:var(--ink);
+  background:linear-gradient(160deg,#FFD27A,var(--amber)); clip-path:polygon(50% 0,100% 24%,100% 76%,50% 100%,0 76%,0 24%); padding-top:2px; }
+.lv small { display:block; font-family:var(--body); font-size:9px; font-weight:700; margin-bottom:-1px; text-align:center; }
+.who { flex:1; min-width:0; }
+.who b { display:block; font-size:14px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.xp { display:grid; grid-template-columns:repeat(10,1fr); gap:3px; margin-top:6px; }
+.xp i { height:6px; background:#2A3280; transform:skewX(-24deg); }
+.xp i.on { background:linear-gradient(90deg,var(--violet),#A68CFF); }
+.wallet { display:flex; flex-direction:column; gap:4px; align-items:flex-end; }
+.chip { --c:7px; display:inline-flex; align-items:center; gap:6px; padding:3px 12px 3px 9px; font-size:13px; font-weight:700; background:#10163D; border-left:3px solid var(--amber); clip-path:polygon(0 0,100% 0,100% calc(100% - 7px),calc(100% - 7px) 100%,0 100%); }
+.chip.p { border-left-color:var(--violet); }
+
+/* 본문 */
+main { position:relative; z-index:1; flex:1; overflow-y:auto; padding:6px 16px 24px; scrollbar-width:none; }
+main::-webkit-scrollbar { display:none; }
+h1 { font-family:var(--display); font-weight:400; font-size:30px; line-height:1.15; letter-spacing:-.5px; }
+h2 { font-family:var(--display); font-weight:400; font-size:20px; letter-spacing:-.3px; }
+.muted { color:var(--mute); font-size:13px; }
+.sec { margin-top:22px; }
+.sec > h2 { margin-bottom:10px; }
+
+/* 히어로 */
+.hero { margin-top:12px; }
+.hero .stage { height:210px; display:grid; place-items:center; position:relative; overflow:hidden; background:linear-gradient(180deg,#2B38A8,#18205F); }
+.hero .stage::before { content:""; position:absolute; left:50%; bottom:-70px; width:340px; height:150px; transform:translateX(-50%); background:linear-gradient(180deg,#7B5BE0,#3A2A93); clip-path:polygon(18% 0,82% 0,100% 100%,0 100%); opacity:.9; }
+.hero .stage::after { content:""; position:absolute; left:50%; bottom:46px; width:190px; height:14px; transform:translateX(-50%); background:rgba(8,11,32,.55); clip-path:polygon(8% 0,92% 0,100% 100%,0 100%); }
+.hero .stage svg { position:relative; z-index:1; width:150px; height:150px; margin-bottom:22px; filter:drop-shadow(0 10px 0 rgba(8,11,32,.28)); }
+.hero .body { padding:16px 18px 18px; }
+.hero h2 { font-size:24px; }
+.hero .reward { margin-top:4px; }
+.hero .reward b { color:var(--amber); font-weight:700; }
+
+.btn { --c:12px; position:relative; display:block; width:100%; padding:14px 16px 12px; margin-top:14px; font-family:var(--display); font-size:18px; letter-spacing:-.2px; text-align:center; color:var(--frost);
+  background:linear-gradient(100deg,var(--violet),var(--indigo)); border-bottom:4px solid var(--indigo-d);
+  clip-path:polygon(var(--c) 0,100% 0,100% calc(100% - var(--c)),calc(100% - var(--c)) 100%,0 100%,0 var(--c)); }
+.btn:active { transform:translateY(2px); border-bottom-width:2px; padding-bottom:14px; }
+.btn.gold { color:var(--ink); background:linear-gradient(100deg,#FFD27A,var(--amber)); border-bottom-color:var(--amber-d); }
+.btn.ghost { background:#222A6E; border-bottom-color:#141A4A; color:var(--frost); }
+.btn:disabled { opacity:.55; cursor:default; }
+.btn:disabled:active { transform:none; border-bottom-width:4px; padding-bottom:12px; }
+.btn.small { display:inline-block; width:auto; margin:0; padding:9px 16px 7px; font-size:15px; }
+
+/* 진행 단계: 실제 순서 */
+.rail { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-top:16px; }
+.rail div { position:relative; padding:8px 4px 6px 12px; font-size:12px; font-weight:700; line-height:1.3; color:var(--mute); background:#161D52; clip-path:polygon(0 0,calc(100% - 8px) 0,100% 50%,calc(100% - 8px) 100%,0 100%,8px 50%); }
+.rail div:first-child { clip-path:polygon(0 0,calc(100% - 8px) 0,100% 50%,calc(100% - 8px) 100%,0 100%); padding-left:8px; }
+.rail div em { display:block; font-style:normal; font-family:var(--display); font-size:15px; font-weight:400; }
+.rail div.done { background:#2C3AA8; color:var(--frost); }
+.rail div.now { background:linear-gradient(100deg,var(--violet),var(--indigo)); color:#fff; }
+.rail div.now em { color:#FFE3A6; }
+
+/* 납작한 목록 */
+.rows { border-top:1px solid #2A3280; }
+.row { display:flex; align-items:center; gap:14px; padding:14px 2px; border-bottom:1px solid #2A3280; }
+.row .ico { width:46px; height:46px; flex:none; display:grid; place-items:center; background:#222A6E; clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%); color:var(--mute); }
+.row.on .ico { background:linear-gradient(160deg,var(--violet),var(--indigo)); color:#fff; }
+.row .t { flex:1; min-width:0; }
+.row .t b { display:block; font-size:15px; font-weight:700; }
+.tag { display:inline-block; padding:2px 8px 1px; font-size:11px; font-weight:700; background:#222A6E; color:var(--mute); transform:skewX(-10deg); }
+.tag.ok { background:#12433A; color:var(--ok); }
+.tag.wait { background:#4A3708; color:var(--amber); }
+
+/* 도감 */
+.dex { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+.slot { --c:12px; padding:10px 6px 10px; text-align:center; background:#161D52; clip-path:polygon(var(--c) 0,100% 0,100% calc(100% - var(--c)),calc(100% - var(--c)) 100%,0 100%,0 var(--c)); }
+.slot svg { width:78px; height:78px; display:block; margin:0 auto 4px; }
+.slot b { display:block; font-size:13px; }
+.slot.lock { color:var(--mute); }
+.slot.have { background:linear-gradient(160deg,#2B38A8,#1B2257); }
+
+/* 보상 */
+.coin { display:flex; align-items:baseline; gap:8px; }
+.coin strong { font-family:var(--display); font-weight:400; font-size:48px; line-height:1; color:var(--amber); }
+.gauge { display:grid; grid-template-columns:repeat(10,1fr); gap:3px; margin:12px 0 6px; }
+.gauge i { height:10px; background:#2A3280; transform:skewX(-24deg); }
+.gauge i.on { background:linear-gradient(90deg,#FFD27A,var(--amber)); }
+
+/* 하단 탭 */
+nav { position:relative; z-index:3; display:grid; grid-template-columns:repeat(5,1fr); padding:0 6px calc(env(safe-area-inset-bottom,0px) + 4px); background:#0A0E2A; border-top:1px solid #2A3280; }
+nav button { position:relative; padding:10px 0 8px; display:flex; flex-direction:column; align-items:center; gap:3px; font-size:11px; font-weight:700; color:#7683C2; }
+nav button svg { width:24px; height:24px; fill:none; stroke:currentColor; stroke-width:2; stroke-linejoin:miter; stroke-linecap:square; }
+nav button.on { color:var(--frost); }
+nav button.on::before { content:""; position:absolute; top:-1px; left:16%; right:16%; height:4px; background:var(--amber); transform:skewX(-30deg); }
+
+/* 오버레이 */
+.layer { position:absolute; inset:0; z-index:10; display:none; }
+.layer.open { display:flex; }
+.splash { flex-direction:column; justify-content:flex-end; padding:0 22px calc(env(safe-area-inset-bottom,0px) + 28px); background:linear-gradient(180deg,#1A2478 0%,var(--ink) 70%); overflow:hidden; }
+.splash .art { position:absolute; left:0; right:0; top:0; height:58%; display:grid; place-items:center; }
+.splash .art svg { width:210px; height:210px; position:relative; z-index:1; filter:drop-shadow(0 14px 0 rgba(8,11,32,.3)); }
+.splash .art::before { content:""; position:absolute; left:50%; top:46%; width:330px; height:330px; transform:translate(-50%,-50%) rotate(45deg); background:linear-gradient(160deg,#4254E0,#2A1F80); opacity:.55; }
+.splash h1 { font-size:52px; line-height:1; transform:skewX(-6deg); transform-origin:left bottom; }
+.splash p { margin-top:10px; color:#C5CFF5; }
+.splash small { display:block; margin-top:12px; text-align:center; color:var(--mute); font-size:12px; }
+
+.sheet { align-items:flex-end; background:rgba(5,8,24,.72); }
+.sheet .in { width:100%; max-height:92%; overflow-y:auto; padding:22px 18px calc(env(safe-area-inset-bottom,0px) + 18px); background:#161D52; border-top:4px solid var(--violet);
+  clip-path:polygon(0 0,calc(100% - 24px) 0,100% 24px,100% 100%,0 100%); }
+body, .layer, #view { -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
+input, textarea { -webkit-user-select:text; user-select:text; }
+.info h3 { margin:0 0 4px; font-size:20px; } .info .sub { color:#C5CFF5; font-size:13px; margin-bottom:12px; }
+.info .box { background:#0E1330; border:1px solid var(--line); padding:12px; margin:10px 0; font-size:14px; line-height:1.6; }
+.info .tagx { display:inline-block; padding:3px 8px; font-size:12px; font-weight:800; background:#2B3380; margin-right:6px; }
+.info .nl { padding:12px 0; border-bottom:1px solid var(--line); font-size:14px; line-height:1.55; } .info .nl b { display:block; }
+.field { display:block; margin-top:14px; font-size:13px; font-weight:700; color:#C5CFF5; }
+.field input[type=text], .field input[type=tel], .field input[type=password] { display:block; width:100%; margin-top:6px; padding:12px; font-size:16px; background:#0E1330; border:1px solid var(--line); border-radius:0; outline:none; }
+.field input:focus { border-color:var(--amber); }
+.agree { display:flex; gap:10px; margin-top:16px; font-size:12px; color:#C5CFF5; line-height:1.55; }
+.agree input { width:20px; height:20px; flex:none; margin-top:1px; accent-color:var(--violet); }
+.err { min-height:20px; margin-top:10px; font-size:13px; font-weight:700; color:var(--bad); }
+
+.cam { flex-direction:column; background:#05081A; }
+.cam .feed { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; background:linear-gradient(160deg,#10163D,#05081A); }
+.cam .top { position:relative; display:flex; justify-content:space-between; align-items:flex-start; padding:calc(env(safe-area-inset-top,0px) + 14px) 16px 0; }
+.cam .x { width:44px; height:44px; display:grid; place-items:center; background:rgba(8,11,32,.7); font-size:20px; clip-path:polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px); }
+.cam .code { text-align:right; padding:6px 12px 5px; background:rgba(8,11,32,.78); border-right:3px solid var(--amber); }
+.cam .code b { display:block; font-family:var(--display); font-weight:400; font-size:22px; letter-spacing:2px; color:var(--amber); line-height:1.1; }
+.cam .code span { font-size:11px; color:#C5CFF5; }
+.cam .frame { position:relative; flex:1; margin:18px 28px; }
+.cam .frame i { position:absolute; width:34px; height:34px; border:0 solid var(--frost); }
+.cam .frame i:nth-child(1){ left:0; top:0; border-width:4px 0 0 4px; }
+.cam .frame i:nth-child(2){ right:0; top:0; border-width:4px 4px 0 0; }
+.cam .frame i:nth-child(3){ left:0; bottom:0; border-width:0 0 4px 4px; }
+.cam .frame i:nth-child(4){ right:0; bottom:0; border-width:0 4px 4px 0; }
+.cam .hint { position:relative; text-align:center; padding:0 28px; font-size:13px; color:#DDE4FF; text-shadow:0 1px 6px #000; }
+.cam .bar { position:relative; display:flex; justify-content:center; align-items:center; gap:22px; padding:16px 20px calc(env(safe-area-inset-bottom,0px) + 24px); }
+.shutter { width:76px; height:84px; background:var(--frost); clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%); display:grid; place-items:center; }
+.shutter::after { content:""; width:58px; height:64px; background:linear-gradient(160deg,#FFD27A,var(--amber)); clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%); }
+.shutter:active::after { background:var(--amber-d); }
+.cam .state { position:absolute; left:0; right:0; top:50%; transform:translateY(-50%); text-align:center; padding:0 40px; z-index:2; font-weight:700; }
+
+.toast { position:absolute; left:16px; right:16px; bottom:calc(env(safe-area-inset-bottom,0px) + 84px); z-index:30; padding:12px 16px; font-weight:700; font-size:14px; background:var(--frost); color:var(--ink); border-left:6px solid var(--violet); clip-path:polygon(0 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%); opacity:0; transform:translateY(8px); transition:opacity .18s, transform .18s; pointer-events:none; }
+.toast.show { opacity:1; transform:none; }
+.demo { position:absolute; z-index:40; left:8px; right:8px; top:calc(env(safe-area-inset-top,0px) + 2px); display:flex; flex-wrap:wrap; gap:3px; font-size:10px; }
+.demo button { flex:1; padding:3px 0; background:#fff; color:#111; font-weight:700; }
+.demo span { align-self:center; color:#fff; background:#000; padding:3px 6px; }
+/* ===== 몬스터 쇼케이스 (홈): 몬스터가 정보 카드 위로 튀어나오는 구성 ===== */
+.show { margin:0 -16px; }
+.show .stage { position:relative; z-index:2; height:318px; }
+.show .stage .bgfx { position:absolute; left:0; right:0; top:0; bottom:70px; overflow:hidden;
+  background:
+    radial-gradient(circle at 18% 28%, rgba(255,181,52,.30) 0, rgba(255,181,52,0) 22%),
+    radial-gradient(circle at 82% 18%, rgba(139,107,255,.55) 0, rgba(139,107,255,0) 30%),
+    radial-gradient(circle at 70% 72%, rgba(80,110,255,.45) 0, rgba(80,110,255,0) 26%),
+    linear-gradient(180deg,var(--g1) 0%,var(--g2) 55%,var(--g3) 100%); transition:background .6s; }
+.show .stage .bgfx::before { content:""; position:absolute; left:50%; top:52%; width:300px; height:300px; transform:translate(-50%,-50%) rotate(45deg); background:linear-gradient(160deg,rgba(150,130,255,.45),rgba(40,50,160,.25)); }
+.show .stage .bgfx::after { content:""; position:absolute; left:-10%; right:-10%; bottom:-1px; height:46px; background:#0E1330; clip-path:polygon(0 100%,0 62%,18% 30%,36% 55%,54% 12%,72% 48%,88% 26%,100% 58%,100% 100%); opacity:.0; }
+.show .stage > svg { position:absolute; left:50%; top:46%; width:170px; height:170px; transform:translate(-50%,-50%); }
+.show .stagebtn { position:absolute; z-index:3; right:14px; top:12px; padding:7px 12px 5px; font-size:12px; font-weight:700; background:rgba(14,19,48,.72); border-left:3px solid var(--amber); clip-path:polygon(0 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%); }
+.show .stagebtn.tilt { right:auto; left:14px; border-left-color:var(--violet); }
+.show .card { position:relative; z-index:1; margin:-70px 16px 0; }
+.show .card .in { padding:60px 18px 18px; text-align:center; }
+.show .name { font-size:30px; }
+.show .sub { margin-top:2px; color:var(--mute); font-size:13px; }
+.show .prog { display:grid; grid-template-columns:repeat(4,1fr); gap:4px; margin:14px auto 0; max-width:300px; }
+.show .prog i { height:9px; background:#2A3280; transform:skewX(-24deg); }
+.show .prog i.on { background:linear-gradient(90deg,#9B82FF,var(--violet)); }
+.show .prog i.now { background:linear-gradient(90deg,#FFD27A,var(--amber)); }
+.show .state { margin-top:8px; font-size:12px; color:var(--mute); }
+.stats { display:grid; grid-template-columns:repeat(3,1fr); margin-top:16px; padding:14px 0 4px; border-top:1px solid #2F3992; }
+.stats div + div { border-left:1px solid #2F3992; }
+.stats b { display:block; font-family:var(--display); font-weight:400; font-size:20px; line-height:1.2; }
+.stats span { font-size:12px; color:var(--mute); }
+.stats .gold { color:var(--amber); }
+.show .btn { margin-top:16px; }
+.show .rail { margin-top:16px; text-align:left; }
+.slot img { width:92px; height:92px; display:block; margin:0 auto 2px; }
+
+/* ===== AR 보기 ===== */
+.ar { flex-direction:column; background:#05081A; }
+.ar .arbg { position:absolute; inset:0; overflow:hidden; }
+.ar .arbg video { width:100%; height:100%; object-fit:cover; display:block; }
+.ar .envbg { position:absolute; inset:0; background:var(--arbg,#0E1330); }
+.ar .arhost { position:absolute; inset:0; }
+.ar .top { position:relative; z-index:2; display:flex; justify-content:space-between; align-items:flex-start; padding:calc(env(safe-area-inset-top,0px) + 14px) 14px 0; pointer-events:none; }
+.ar .top > * { pointer-events:auto; }
+.ar .x { width:44px; height:44px; display:grid; place-items:center; background:rgba(14,19,48,.72); font-size:15px; font-weight:700; clip-path:polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px); }
+.ar .x.off { color:var(--mute); text-decoration:line-through; }
+.pill { padding:8px 26px 6px; text-align:center; background:rgba(14,19,48,.6); border-bottom:3px solid var(--amber); transform:skewX(-8deg); backdrop-filter:blur(6px); }
+.pill b { display:block; font-family:var(--display); font-weight:400; font-size:21px; line-height:1.2; }
+.pill span { font-size:12px; color:#FFE3A6; }
+.ar .arhint { position:absolute; left:20px; right:20px; bottom:calc(env(safe-area-inset-bottom,0px) + 150px); z-index:2; text-align:center; font-size:13px; font-weight:700; color:#fff; text-shadow:0 1px 8px #000; pointer-events:none; }
+.ar .bar { position:absolute; left:0; right:0; bottom:0; z-index:2; display:flex; justify-content:center; padding:0 20px calc(env(safe-area-inset-bottom,0px) + 28px); }
+.catch { width:96px; height:106px; display:grid; place-items:center; background:var(--frost); clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%); }
+.catch span { width:80px; height:89px; display:grid; place-items:center; font-family:var(--display); font-size:20px; color:var(--ink); background:linear-gradient(160deg,#FFD27A,var(--amber)); clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%); padding-top:3px; }
+.catch:disabled { opacity:.7; }
+.catch:active span { background:var(--amber-d); }
+.arnote { padding:10px 16px; font-size:13px; font-weight:700; background:rgba(14,19,48,.72); text-align:center; }
+.splash .art { overflow:hidden; }
+
+
+/* ===== 지도 홈 ===== */
+main.map { padding:0; overflow:hidden; display:flex; flex-direction:column; }
+.mapwrap { position:relative; flex:1; min-height:0; }
+.maphost { position:absolute; inset:0; overflow:hidden; background:var(--g3); }
+.maplbl { position:absolute; inset:0; z-index:2; pointer-events:none; overflow:hidden; }
+.mlab { position:absolute; left:0; top:0; padding:6px 16px 5px; font-size:13px; font-weight:700; color:#fff; white-space:nowrap; background:rgba(16,22,70,.88); border:2px solid #8FB6FF; border-radius:999px; box-shadow:0 2px 8px rgba(0,0,0,.35); }
+.mlab.m { border-color:#FFD76A; color:#FFF3C9; }
+.mlab.mon { background:rgba(16,22,70,.7); border-color:rgba(255,255,255,.55); font-size:12px; }
+.mtop { position:absolute; z-index:5; left:0; right:0; top:0; display:flex; align-items:center; gap:8px; padding:calc(env(safe-area-inset-top,0px) + 10px) 12px 0; pointer-events:none; }
+.mtop > * { pointer-events:auto; }
+.logo { display:flex; align-items:flex-end; gap:2px; line-height:1; transform:skewX(-6deg); text-shadow:0 2px 0 #1B2262,0 0 10px rgba(0,0,0,.45); flex:none; }
+.logo b { font-family:var(--display); font-weight:400; font-size:21px; color:#fff; -webkit-text-stroke:1.5px #1B2262; paint-order:stroke fill; }
+.logo em { font-family:var(--display); font-style:italic; font-weight:400; font-size:28px; color:#fff; -webkit-text-stroke:2px #1B2262; paint-order:stroke fill; }
+.mpill { flex:1; min-width:0; display:flex; align-items:center; gap:6px; padding:9px 12px 8px; font-size:13px; font-weight:700; color:#fff; background:rgba(16,22,70,.86); border:2px solid #8FB6FF; border-radius:999px; white-space:nowrap; }
+.mpill span { margin-left:auto; font-size:18px; line-height:1; }
+.mround { position:relative; width:40px; height:40px; flex:none; display:grid; place-items:center; color:#fff; background:rgba(16,22,70,.86); border:2px solid rgba(255,255,255,.7); border-radius:50%; }
+.mround.big { width:48px; height:48px; color:#1B2262; background:#fff; border-color:#fff; box-shadow:0 3px 10px rgba(0,0,0,.35); }
+.mround.on { background:#FFD76A; border-color:#FFD76A; }
+.mround .dot { position:absolute; top:-2px; right:-2px; width:12px; height:12px; background:#FF4D5E; border:2px solid #fff; border-radius:50%; }
+.mdist { position:absolute; z-index:4; left:12px; top:calc(env(safe-area-inset-top,0px) + 62px); padding:5px 12px 4px; font-size:12px; font-weight:700; color:#FFF3C9; background:rgba(16,22,70,.78); border-radius:999px; }
+.mside { position:absolute; z-index:4; right:12px; bottom:150px; display:flex; flex-direction:column; gap:12px; }
+.maphint { position:absolute; left:0; right:0; bottom:128px; z-index:3; text-align:center; font-size:12px; font-weight:700; color:#fff; text-shadow:0 1px 6px #000; pointer-events:none; }
+.mbot { position:absolute; z-index:5; left:0; right:0; bottom:0; height:118px; display:flex; align-items:flex-end; justify-content:space-between; padding:0 10px calc(env(safe-area-inset-bottom,0px) + 14px); pointer-events:none; background:linear-gradient(180deg,rgba(14,19,60,0),rgba(14,19,60,.55)); }
+.mbot > * { pointer-events:auto; }
+.mprof { display:flex; align-items:center; gap:8px; width:36%; min-width:0; padding:6px 10px 6px 6px; text-align:left; color:#fff; background:rgba(16,22,70,.86); border:2px solid rgba(255,255,255,.6); border-radius:999px; }
+.mprof .av { flex:none; width:40px; height:40px; display:grid; place-items:center; font-family:var(--display); font-size:19px; background:linear-gradient(160deg,#B58CFF,#6D35E8); border:2px solid #fff; border-radius:50%; }
+.mprof .pi { min-width:0; flex:1; display:block; } .mprof small { display:block; font-size:11px; font-weight:700; color:#FFD76A; line-height:1.1; } .mprof b { display:block; font-size:12px; line-height:1.25; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.mprof .xp { display:grid; grid-template-columns:repeat(10,1fr); gap:1px; margin-top:3px; } .mprof .xp i { height:4px; background:#3A4690; } .mprof .xp i.on { background:#7CE0A8; }
+.mmain { flex:none; width:84px; height:84px; margin-bottom:6px; padding:0; display:grid; place-items:center; border-radius:50%; background:#fff; border:4px solid #fff; box-shadow:0 5px 14px rgba(0,0,0,.5); overflow:hidden; position:relative; }
+.mmain span { position:absolute; inset:0; background:linear-gradient(160deg,#A68BFF,#5B3FE0 70%,#3A2AA8); }
+.mmain i { position:absolute; left:50%; top:50%; width:36px; height:48px; transform:translate(-50%,-50%); background:linear-gradient(180deg,#FFE9A8,#FFB534); clip-path:polygon(58% 0,8% 56%,44% 56%,30% 100%,92% 40%,56% 40%); }
+.mmenu { display:flex; gap:6px; width:36%; justify-content:flex-end; }
+.mmenu button { display:flex; flex-direction:column; align-items:center; gap:2px; padding:6px 0 3px; flex:1; min-width:0; color:#fff; font-size:11px; font-weight:700; background:rgba(16,22,70,.86); border:2px solid rgba(255,255,255,.55); border-radius:14px; }
+.mapcr { position:absolute; right:8px; bottom:2px; z-index:6; font-size:9px; color:rgba(255,255,255,.8); text-shadow:0 1px 3px #000; pointer-events:none; }
+.mapfail { position:absolute; inset:0; display:grid; place-items:center; padding:24px; text-align:center; color:#fff; font-size:14px; }
+.layer.mon { flex-direction:column; background:#0E1330; overflow-y:auto; padding:calc(env(safe-area-inset-top,0px) + 10px) 16px calc(env(safe-area-inset-bottom,0px) + 24px); scrollbar-width:none; }
+.monback { align-self:flex-start; margin-bottom:8px; padding:9px 16px 7px; font-weight:700; background:#222A6E; clip-path:polygon(0 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%); }
+
+@media (prefers-reduced-motion: reduce) { * { transition:none !important; animation:none !important; } }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="shards"><i></i><i></i><i></i></div>
+  <header class="hud" id="hud"></header>
+  <main id="view"></main>
+  <nav id="nav" aria-label="메뉴"></nav>
+
+  <div class="layer splash" id="splash" role="dialog" aria-label="시작하기">
+    <div class="art" id="splashArt"></div>
+    <h1>건강몬 GO</h1>
+    <p>운동하고 인증하면 몬스터가 나타나요.<br>세종대 캠퍼스에서 모으고, 포인트로 바꿔요.</p>
+    <button class="btn" id="startBtn" type="button">바로 시작하기</button>
+    <small>학번은 포인트를 보상으로 바꿀 때만 입력해요.</small>
+  </div>
+
+  <div class="layer sheet" id="infoSheet" role="dialog" aria-modal="true" aria-label="안내"><div class="in" id="infoBody"></div></div>
+  <div class="layer sheet" id="linkSheet" role="dialog" aria-modal="true" aria-label="학번 연결">
+    <div class="in" id="linkBody"></div>
+  </div>
+
+  <div class="layer mon" id="mon" role="dialog" aria-modal="true" aria-label="미션 몬스터"></div>
+  <div class="layer cam" id="cam" role="dialog" aria-modal="true" aria-label="카메라 인증"></div>
+  <div class="layer ar" id="ar" role="dialog" aria-modal="true" aria-label="AR 보기"></div>
+  <div class="toast" id="toast" role="status"></div>
+</div>
+
+<script>
+/* ===== 서버 호출 (Apps Script) / 시안 모드 ===== */
+var IS_DEMO = !(window.google && google.script && google.script.run);
+function api(name) {
+  var args = Array.prototype.slice.call(arguments, 1);
+  return new Promise(function (resolve, reject) {
+    if (IS_DEMO) { Promise.resolve().then(function () { return demo[name].apply(null, args); }).then(resolve, reject); return; }
+    google.script.run.withSuccessHandler(resolve).withFailureHandler(function (e) { reject(new Error((e && e.message) || String(e))); })[name].apply(google.script.run, args);
+  });
+}
+var ds = { proofs: [], catches: [], redemptions: [], coins: 0, points: 0 };
+var demo = {
+  startGuest: function () { return { userId: 'hm_demo_' + Math.random().toString(36).slice(2, 14), name: '게스트', studentId: '' }; },
+  getGameState: function () { return JSON.parse(JSON.stringify(ds)); },
+  issueProofChallenge: function () { var t = ''; for (var i = 0; i < 32; i++) t += '0123456789abcdef'[Math.floor(Math.random() * 16)]; return { token: t, serverTime: Date.now(), expiresAt: Date.now() + 120000 }; },
+  submitProof: function () { var np = { id: 'p' + ds.proofs.length, missionId: 'gym15', status: 'PENDING', captured: false, submittedAt: new Date().toString() }; ds.proofs.push(np); setTimeout(function () { np.status = 'APPROVED'; try { refresh(true); toast('승인됐어요! 번개 버튼으로 포획해 보세요.'); } catch (e) {} }, 4000); return { status: 'PENDING' }; },
+  captureMonster: function () { ds.proofs.forEach(function (p) { if (p.status === 'APPROVED') p.captured = true; }); ds.catches.push({ missionId: 'gym15', monster: '에너지몬', coins: 50, points: 100 }); ds.coins += 50; ds.points += 100; return { monster: '에너지몬', coins: 50, points: 100 }; },
+  redeemReward: function () { if (ds.coins < 300) throw new Error('코인이 부족해요. (300코인 필요)'); ds.coins -= 300; ds.redemptions.push({ rewardId: 'cafeteria1000', cost: 300, status: 'PENDING' }); return { status: 'PENDING' }; },
+  linkStudent: function (u, sid, name) { return { studentId: sid, name: name }; }
+};
+
+/* ===== 상태 ===== */
+var KEY = 'healthmon_guest_v3';
+var me = null;               // { userId, name, studentId }
+var data = { proofs: [], catches: [], redemptions: [], coins: 0, points: 0 };
+var tab = 'home';
+var MON = { energy: { name: '에너지몬', a: '#7B5BE0', b: '#2F3FB8' } };
+var LOCKED = 5;
+
+function $(id) { return document.getElementById(id); }
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+function load() { try { me = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { me = null; } }
+function save() { try { localStorage.setItem(KEY, JSON.stringify(me)); } catch (e) {} }
+function toast(msg) { var t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast.h); toast.h = setTimeout(function () { t.classList.remove('show'); }, 2400); }
+
+/* ===== 몬스터: 코드로 그린 각진 크리스털 ===== */
+var gid = 0;
+function monster(opt) {
+  var id = 'g' + (++gid), lock = opt && opt.lock;
+  var a = lock ? '#2A3280' : '#7B5BE0', b = lock ? '#1A2160' : '#2F3FB8';
+  var eye = lock ? '#3A4690' : '#FFB534';
+  return '<svg viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="' + id + '" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="' + a + '"/><stop offset="1" stop-color="' + b + '"/></linearGradient></defs>' +
+    '<polygon points="34,36 22,6 52,28" fill="' + b + '"/><polygon points="86,36 98,6 68,28" fill="' + b + '"/>' +
+    '<polygon points="60,18 98,40 98,84 60,110 22,84 22,40" fill="url(#' + id + ')"/>' +
+    '<polygon points="60,18 98,40 60,60 22,40" fill="#fff" opacity="' + (lock ? '.05' : '.2') + '"/>' +
+    '<polygon points="60,60 98,40 98,84 60,110" fill="#000" opacity=".2"/>' +
+    '<polygon points="38,54 56,60 53,70 38,67" fill="' + eye + '"/><polygon points="82,54 64,60 67,70 82,67" fill="' + eye + '"/>' +
+    (lock ? '<text x="60" y="92" text-anchor="middle" font-size="26" font-weight="900" fill="#4A58A8">?</text>' :
+      '<polygon points="63,74 53,88 60,88 55,102 69,85 62,85" fill="#FFB534"/>') + '</svg>';
+}
+
+/* ===== 3D (three.js): 기울이면 몬스터가 움직이고, AR에서는 공간에 고정돼요 ===== */
+var HAS3D = typeof THREE !== 'undefined';
+var D2R = Math.PI / 180;
+var motion = { state: 'none', alpha: 0, beta: 90, gamma: 0, t: 0, listening: false };
+function needMotionPerm() { return typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function'; }
+function onOrient(e) {
+  if (e.beta == null && e.gamma == null) return;
+  motion.alpha = e.alpha || 0; motion.beta = e.beta || 0; motion.gamma = e.gamma || 0;
+  motion.t = Date.now(); motion.state = 'on';
+}
+function enableMotion() {
+  if (motion.listening) return Promise.resolve(motion.state);
+  function start() { window.addEventListener('deviceorientation', onOrient, true); motion.listening = true; if (motion.state === 'none') motion.state = 'pending'; return motion.state; }
+  if (needMotionPerm()) {
+    return DeviceOrientationEvent.requestPermission().then(function (r) { if (r === 'granted') return start(); motion.state = 'denied'; return 'denied'; }, function () { motion.state = 'denied'; return 'denied'; });
+  }
+  return Promise.resolve(start());
+}
+function sensorLive() { return motion.state === 'on' && Date.now() - motion.t < 1500; }
+function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+
+var QQ = null;
+function orientQuat(out, alpha, beta, gamma, orient) {
+  if (!QQ) QQ = { zee: new THREE.Vector3(0, 0, 1), eu: new THREE.Euler(), q0: new THREE.Quaternion(), q1: new THREE.Quaternion(-Math.sqrt(0.5), 0, 0, Math.sqrt(0.5)) };
+  QQ.eu.set(beta, alpha, -gamma, 'YXZ');
+  out.setFromEuler(QQ.eu); out.multiply(QQ.q1); out.multiply(QQ.q0.setFromAxisAngle(QQ.zee, -orient));
+}
+
+function rng(seed) { var s = seed; return function () { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; }; }
+/* 면마다 색을 달리 칠해서 결정체처럼 보이게 한다 */
+function facet(geo, top, bot, jit, seed, y0, y1) {
+  if (geo.index) geo = geo.toNonIndexed();
+  var p = geo.attributes.position, n = p.count, col = new Float32Array(n * 3), r = rng(seed);
+  var ct = new THREE.Color(top), cb = new THREE.Color(bot), c = new THREE.Color();
+  for (var i = 0; i < n; i += 3) {
+    var y = (p.getY(i) + p.getY(i + 1) + p.getY(i + 2)) / 3, t = clamp((y - y0) / (y1 - y0), 0, 1);
+    c.copy(cb).lerp(ct, t); c.offsetHSL(0, 0, (r() - 0.5) * jit);
+    for (var k = 0; k < 3; k++) { col[(i + k) * 3] = c.r; col[(i + k) * 3 + 1] = c.g; col[(i + k) * 3 + 2] = c.b; }
+  }
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  geo.computeVertexNormals();
+  return geo;
+}
+function bodyMat(lock) {
+  return lock ? new THREE.MeshBasicMaterial({ color: 0x252D75 }) : new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, metalness: 0.25, roughness: 0.38 });
+}
+function glowMat(lock, hex) { return lock ? new THREE.MeshBasicMaterial({ color: 0x3A4690 }) : new THREE.MeshBasicMaterial({ color: hex }); }
+
+function buildMonster(lock) {
+  var g = new THREE.Group(), inner = new THREE.Group();
+  inner.position.y = -0.9; g.add(inner);
+  function add(mesh, x, y, z) { mesh.position.set(x, y, z); mesh.castShadow = true; inner.add(mesh); return mesh; }
+
+  var body = add(new THREE.Mesh(facet(new THREE.OctahedronGeometry(1, 0), 0x6A4FE0, 0x2230A8, 0.22, 7, -1, 1), bodyMat(lock)), 0, 0.2, 0);
+  body.scale.set(0.95, 1.15, 0.8);
+  var head = add(new THREE.Mesh(facet(new THREE.IcosahedronGeometry(0.62, 0), 0xA38CFF, 0x5A3FD0, 0.26, 11, -0.62, 0.62), bodyMat(lock)), 0, 1.5, 0.1);
+  head.scale.set(1.12, 0.92, 0.95);
+
+  var hornGeo = facet(new THREE.ConeGeometry(0.17, 0.75, 4), 0xFFD27A, 0x7B5BE0, 0.1, 3, -0.37, 0.37);
+  var hl = add(new THREE.Mesh(hornGeo, bodyMat(lock)), -0.36, 2.08, 0.04); hl.rotation.z = 0.5;
+  var hr = add(new THREE.Mesh(hornGeo, bodyMat(lock)), 0.36, 2.08, 0.04); hr.rotation.z = -0.5;
+
+  var eyeGeo = new THREE.BoxGeometry(0.3, 0.09, 0.05);
+  var el = add(new THREE.Mesh(eyeGeo, glowMat(lock, 0xFFC24B)), -0.27, 1.56, 0.68); el.rotation.set(0, -0.36, -0.3);
+  var er = add(new THREE.Mesh(eyeGeo, glowMat(lock, 0xFFC24B)), 0.27, 1.56, 0.68); er.rotation.set(0, 0.36, 0.3);
+
+  var armGeo = facet(new THREE.OctahedronGeometry(1, 0), 0x8B6BFF, 0x2A39B8, 0.24, 19, -1, 1);
+  var al = add(new THREE.Mesh(armGeo, bodyMat(lock)), -1.3, 0.35, 0.15); al.scale.set(0.3, 0.85, 0.3); al.rotation.z = 0.35;
+  var ar2 = add(new THREE.Mesh(armGeo, bodyMat(lock)), 1.3, 0.35, 0.15); ar2.scale.set(0.3, 0.85, 0.3); ar2.rotation.z = -0.35;
+
+  var orbit = new THREE.Group(); orbit.position.y = 0.5; inner.add(orbit);
+  var shards = [];
+  if (!lock) {
+    var bs = new THREE.Shape();
+    bs.moveTo(0.06, 0.5); bs.lineTo(-0.26, -0.04); bs.lineTo(-0.02, -0.04); bs.lineTo(-0.14, -0.52); bs.lineTo(0.28, 0.1); bs.lineTo(0.04, 0.1); bs.closePath();
+    var bolt = new THREE.Mesh(new THREE.ExtrudeGeometry(bs, { depth: 0.07, bevelEnabled: false }), new THREE.MeshStandardMaterial({ color: 0xFFB534, emissive: 0xFFB534, emissiveIntensity: 1.1, flatShading: true }));
+    bolt.position.set(-0.02, 0.05, 0.74); inner.add(bolt);
+    var sg = new THREE.TetrahedronGeometry(0.17, 0), sm = new THREE.MeshStandardMaterial({ color: 0xB9A6FF, emissive: 0x6A4FE0, emissiveIntensity: 0.9, flatShading: true });
+    for (var i = 0; i < 6; i++) { var s = new THREE.Mesh(sg, sm); s.userData.a = i / 6 * Math.PI * 2; s.userData.h = (i % 3 - 1) * 0.55; orbit.add(s); shards.push(s); }
+  }
+  return {
+    group: g,
+    update: function (t) {
+      inner.position.y = -0.9 + Math.sin(t * 1.7) * 0.07;
+      head.rotation.z = Math.sin(t * 1.1) * 0.05; head.rotation.y = Math.sin(t * 0.8) * 0.12;
+      el.position.y = er.position.y = 1.56 + Math.sin(t * 1.7) * 0.01;
+      var blink = (t % 4.2) < 0.12 ? 0.12 : 1; el.scale.y = er.scale.y = blink;
+      al.position.y = 0.35 + Math.sin(t * 1.7 + 1) * 0.08; ar2.position.y = 0.35 + Math.sin(t * 1.7 + 2) * 0.08;
+      orbit.rotation.y = t * 0.7;
+      for (var i = 0; i < shards.length; i++) { var s = shards[i]; s.position.set(Math.cos(s.userData.a) * 1.9, s.userData.h + Math.sin(t * 1.4 + i) * 0.12, Math.sin(s.userData.a) * 1.9); s.rotation.x = t * 1.2 + i; s.rotation.y = t * 0.9; }
+    }
+  };
+}
+
+/* ===== 시간대(낮/노을/밤): 폰 시계로 정하고, 시안 바에서 바꿔 볼 수 있다 ===== */
+var TOD = {
+  day:   { name: '낮',   top: 0x2F8BE6, mid: 0x74B9F5, hor: 0xDDF2FF, low: 0x2F6B4A, gnd: 0x62AE6E, hemiS: 0xFFFFFF, hemiG: 0x6FA070, hemiI: 1.15, key: 0xFFF4DC, keyI: 2.8, rim: 0x8FC4FF, rimI: 1.2, fill: 4,  g1: '#5BB4FF', g2: '#3C93F0', g3: '#2A6FD0', arbg: '#2F6FC0' },
+  dusk:  { name: '노을', top: 0x3A2A8C, mid: 0xC2587E, hor: 0xFFB36B, low: 0x2A1A4A, gnd: 0x5A3A8A, hemiS: 0xFFD9B0, hemiG: 0x3A2A6A, hemiI: 1.0,  key: 0xFFC48A, keyI: 2.6, rim: 0xFF6BA8, rimI: 2.0, fill: 8,  g1: '#FF9A62', g2: '#B8508C', g3: '#4A2C8A', arbg: '#3A2A6A' },
+  night: { name: '밤',   top: 0x141C70, mid: 0x6C52DA, hor: 0xB7A2FF, low: 0x0E1330, gnd: 0x232E8C, hemiS: 0xCBD6FF, hemiG: 0x1A1F5A, hemiI: 1.0,  key: 0xFFFFFF, keyI: 2.4, rim: 0x8B6BFF, rimI: 2.2, fill: 12, g1: '#3A30B0', g2: '#262C9A', g3: '#1B2262', arbg: '#0E1330' }
+};
+var todForce = null;
+function todKey() {
+  if (todForce) return todForce;
+  var h = new Date().getHours();
+  return h >= 7 && h < 17 ? 'day' : (h >= 17 && h < 19 ? 'dusk' : 'night');
+}
+function applyTod() {
+  var T = TOD[todKey()], st = document.documentElement.style;
+  st.setProperty('--g1', T.g1); st.setProperty('--g2', T.g2); st.setProperty('--g3', T.g3); st.setProperty('--arbg', T.arbg);
+}
+function addLights(sc, shadow) {
+  var T = TOD[todKey()];
+  sc.add(new THREE.HemisphereLight(T.hemiS, T.hemiG, T.hemiI));
+  var key = new THREE.DirectionalLight(T.key, T.keyI); key.position.set(3, 6, 5);
+  if (shadow) {
+    key.castShadow = true; key.shadow.mapSize.set(1024, 1024);
+    var c = key.shadow.camera; c.left = -5; c.right = 5; c.top = 5; c.bottom = -5; c.near = 1; c.far = 22;
+    key.shadow.bias = -0.0008; key.shadow.radius = 4;
+  }
+  sc.add(key);
+  var rim = new THREE.DirectionalLight(T.rim, T.rimI); rim.position.set(-4, 2.5, -3); sc.add(rim);
+  var fill = new THREE.PointLight(0xFFB534, T.fill, 8, 2); fill.position.set(0, 0.2, 3); sc.add(fill);
+}
+function setupRenderer(r, W, H) {
+  r.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  r.setSize(W, H, false);
+  r.outputColorSpace = THREE.SRGBColorSpace;
+  r.toneMapping = THREE.ACESFilmicToneMapping; r.toneMappingExposure = 1.15;
+}
+
+var stages = [], heroStage = null, splashStage = null;
+function Stage3D(host, opt) {
+  opt = opt || {};
+  var self = this;
+  this.host = host; this.opt = opt; this.alive = true; this.t0 = performance.now();
+  this.px = 0; this.py = 0; this.sx = 0; this.sy = 0; this.dragYaw = 0; this.dragPitch = 0; this.camInit = false; this.anim = null; this.a0 = null;
+  var W = host.clientWidth || 320, H = host.clientHeight || 320;
+  var r = this.r = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
+  setupRenderer(r, W, H);
+  r.shadowMap.enabled = true; r.shadowMap.type = THREE.PCFSoftShadowMap;
+  var cv = r.domElement;
+  cv.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:' + (opt.ar ? 'none' : 'pan-y');
+  host.appendChild(cv);
+
+  var sc = this.scene = new THREE.Scene();
+  var cam = this.cam = new THREE.PerspectiveCamera(opt.ar ? 62 : 32, W / H, 0.1, 100);
+  addLights(sc, true);
+
+  var root = this.root = new THREE.Group();
+  this.mon = buildMonster(!!opt.lock);
+  root.add(this.mon.group);
+  var shadow = new THREE.Mesh(new THREE.PlaneGeometry(14, 14), new THREE.ShadowMaterial({ opacity: 0.38 }));
+  shadow.rotation.x = -Math.PI / 2; shadow.position.y = -1.85; shadow.receiveShadow = true; root.add(shadow);
+  sc.add(root);
+
+  if (opt.ar) {
+    root.position.set(0, -0.1, -6.6); root.scale.setScalar(0.9);
+    cam.position.set(0, 0, 0);
+    this.qTarget = new THREE.Quaternion();
+    var env = this.env = new THREE.Group();
+    var grid = new THREE.GridHelper(36, 36, 0x7B5BE0, 0x3A4690); grid.material.transparent = true; grid.material.opacity = 0.5; grid.position.y = 0.01; env.add(grid);
+    var rr = rng(5);
+    for (var i = 0; i < 10; i++) {
+      var sz = 0.9 + rr() * 1.8, rock = new THREE.Mesh(facet(new THREE.OctahedronGeometry(sz, 0), 0x8B6BFF, 0x2A39B8, 0.3, 30 + i, -sz, sz), new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.6 }));
+      var ang = i * 0.63 + rr() * 0.4, dist = 11 + rr() * 7;
+      rock.position.set(Math.cos(ang) * dist, sz * 0.6, Math.sin(ang) * dist); rock.scale.y = 1.4; env.add(rock);
+    }
+    env.position.y = -0.1 + -1.85 * 0.9; env.visible = false; sc.add(env);
+    // 하늘 돔: 카메라와 같이 도는 3D 하늘이라 폰을 돌리면 지평선도 함께 움직인다
+    var skyGeo = new THREE.SphereGeometry(60, 32, 20), sp = skyGeo.attributes.position, sc2 = new Float32Array(sp.count * 3);
+    var TT = TOD[todKey()], cTop = new THREE.Color(TT.top), cMid = new THREE.Color(TT.mid), cHor = new THREE.Color(TT.hor), cLow = new THREE.Color(TT.low), cGnd = new THREE.Color(TT.gnd), cc = new THREE.Color();
+    for (var j = 0; j < sp.count; j++) {
+      var yy = sp.getY(j) / 60;
+      if (yy >= 0) cc.copy(cHor).lerp(cMid, Math.min(1, yy * 3)).lerp(cTop, Math.max(0, Math.min(1, (yy - 0.25) * 1.6)));
+      else cc.copy(cGnd).lerp(cLow, Math.min(1, -yy * 3));
+      sc2[j * 3] = cc.r; sc2[j * 3 + 1] = cc.g; sc2[j * 3 + 2] = cc.b;
+    }
+    skyGeo.setAttribute('color', new THREE.BufferAttribute(sc2, 3));
+    var sky = this.sky = new THREE.Mesh(skyGeo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, depthWrite: false }));
+    sky.renderOrder = -3; sky.visible = false; sc.add(sky);
+  } else {
+    cam.position.set(0, 0.3, 8.2); cam.lookAt(0, 0, 0);
+  }
+
+  cv.addEventListener('pointerdown', function (e) { self.drag = true; self.lx = e.clientX; self.ly = e.clientY; });
+  cv.addEventListener('pointerup', function () { self.drag = false; });
+  cv.addEventListener('pointercancel', function () { self.drag = false; });
+  cv.addEventListener('pointermove', function (e) {
+    var b = cv.getBoundingClientRect();
+    if (opt.ar) {
+      if (self.drag) { self.dragYaw += (e.clientX - self.lx) * 0.3; self.dragPitch = clamp(self.dragPitch + (e.clientY - self.ly) * 0.3, -60, 60); self.lx = e.clientX; self.ly = e.clientY; }
+    } else { self.px = ((e.clientX - b.left) / b.width - 0.5) * 2; self.py = ((e.clientY - b.top) / b.height - 0.5) * 1.2; }
+  });
+  cv.addEventListener('pointerleave', function () { self.px = 0; self.py = 0; });
+
+  stages.push(this);
+  this._f = this.frame.bind(this);
+  this.raf = requestAnimationFrame(this._f);
+}
+Stage3D.prototype.setEnv = function (on) { if (this.env) this.env.visible = !!on; if (this.sky) this.sky.visible = !!on; };
+Stage3D.prototype.resize = function () {
+  var W = this.host.clientWidth, H = this.host.clientHeight; if (!W || !H) return;
+  this.r.setSize(W, H, false); this.cam.aspect = W / H; this.cam.updateProjectionMatrix();
+};
+Stage3D.prototype.catchAnim = function () { var self = this; return new Promise(function (res) { self.anim = { t0: performance.now(), dur: 1100, res: res }; }); };
+Stage3D.prototype.frame = function (now) {
+  if (!this.alive) return;
+  var t = (now - this.t0) / 1000;
+  this.mon.update(t);
+  if (this.opt.ar) this.updateAR(); else this.updateTilt(t);
+  if (this.anim) {
+    var k = (now - this.anim.t0) / this.anim.dur, g = this.mon.group;
+    if (k >= 1) { g.visible = false; var rs = this.anim.res; this.anim = null; rs(); }
+    else { g.scale.setScalar(Math.max(0.001, 1 - k * k)); g.rotation.y = k * Math.PI * 6; g.position.y = Math.sin(k * Math.PI) * 0.8; }
+  }
+  this.r.render(this.scene, this.cam);
+  this.raf = requestAnimationFrame(this._f);
+};
+Stage3D.prototype.updateTilt = function (t) {
+  var live = sensorLive(), tx, ty;
+  if (live) { tx = clamp(motion.gamma / 30, -1, 1); ty = clamp((motion.beta - 60) / 30, -1, 1); }
+  else { tx = this.px + Math.sin(t * 0.7) * 0.18; ty = this.py + Math.sin(t * 0.5) * 0.05; }
+  this.sx += (tx - this.sx) * 0.12; this.sy += (ty - this.sy) * 0.12;
+  this.root.rotation.y = this.sx * 0.6; this.root.rotation.x = this.sy * 0.2;
+  this.cam.position.x = this.sx * 0.7; this.cam.position.y = 0.3 - this.sy * 0.4; this.cam.lookAt(0, 0, 0);
+};
+Stage3D.prototype.updateAR = function () {
+  var live = sensorLive();
+  if (live) {
+    if (this.a0 == null) this.a0 = motion.alpha;
+    var orient = ((screen.orientation && screen.orientation.angle != null) ? screen.orientation.angle : (window.orientation || 0)) * D2R;
+    orientQuat(this.qTarget, (motion.alpha - this.a0 + this.dragYaw) * D2R, motion.beta * D2R, motion.gamma * D2R, orient);
+  } else {
+    if (!this.eu) this.eu = new THREE.Euler();
+    this.eu.set(this.dragPitch * D2R, this.dragYaw * D2R, 0, 'YXZ'); this.qTarget.setFromEuler(this.eu);
+  }
+  if (!this.camInit) { this.cam.quaternion.copy(this.qTarget); this.camInit = true; } else this.cam.quaternion.slerp(this.qTarget, 0.25);
+};
+Stage3D.prototype.dispose = function () {
+  this.alive = false; cancelAnimationFrame(this.raf);
+  this.scene.traverse(function (o) { if (o.geometry) o.geometry.dispose(); if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(function (m) { m.dispose(); }); });
+  this.r.dispose(); try { this.r.forceContextLoss(); } catch (e) {}
+  if (this.r.domElement.parentNode) this.r.domElement.parentNode.removeChild(this.r.domElement);
+  var i = stages.indexOf(this); if (i >= 0) stages.splice(i, 1);
+};
+window.addEventListener('resize', function () { stages.forEach(function (s) { s.resize(); }); });
+
+function mountHero(host) { try { heroStage = new Stage3D(host, {}); } catch (e) { heroStage = null; host.insertAdjacentHTML('afterbegin', monster()); } }
+function unmountHero() { if (heroStage) { heroStage.dispose(); heroStage = null; } }
+function openSplash() {
+  unmountHero();
+  var s = $('splash'); s.classList.add('open');
+  if (splashStage) { splashStage.dispose(); splashStage = null; }
+  if (HAS3D) { try { splashStage = new Stage3D($('splashArt'), {}); } catch (e) { $('splashArt').innerHTML = monster(); } } else { $('splashArt').innerHTML = monster(); }
+}
+function closeSplash() { $('splash').classList.remove('open'); if (splashStage) { splashStage.dispose(); splashStage = null; } $('splashArt').innerHTML = ''; }
+
+/* 도감 썸네일: 한 번만 고해상도로 그려서 이미지로 쓴다 */
+var thumbCache = {};
+function thumb(lock) {
+  if (!HAS3D) return null;
+  var k = lock ? 'l' : 'h'; if (thumbCache[k]) return thumbCache[k];
+  try {
+    var r = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+    r.setPixelRatio(1); r.setSize(360, 360); r.outputColorSpace = THREE.SRGBColorSpace; r.toneMapping = THREE.ACESFilmicToneMapping; r.toneMappingExposure = 1.15;
+    var sc = new THREE.Scene(), cam = new THREE.PerspectiveCamera(32, 1, 0.1, 50); cam.position.set(0, 0.3, 8.6); cam.lookAt(0, 0, 0);
+    addLights(sc, false);
+    var m = buildMonster(lock); m.group.rotation.y = -0.35; sc.add(m.group); m.update(0.6);
+    r.render(sc, cam);
+    var url = r.domElement.toDataURL('image/png');
+    sc.traverse(function (o) { if (o.geometry) o.geometry.dispose(); if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(function (mm) { mm.dispose(); }); });
+    r.dispose(); try { r.forceContextLoss(); } catch (e) {}
+    thumbCache[k] = url; return url;
+  } catch (e) { return null; }
+}
+function pic(lock) { var u = thumb(lock); return u ? '<img src="' + u + '" alt="">' : monster({ lock: lock }); }
+
+/* ===== AR 보기 / 포획 ===== */
+var ar = { stage: null, stream: null, canCapture: false, cameraOn: false, hintT: 0 };
+function isOpen(id) { return $(id).classList.contains('open'); }
+function openAR(canCapture) {
+  enableMotion();   // iOS는 터치 직후에만 센서 권한을 물어볼 수 있어서 가장 먼저 부른다
+  if (!HAS3D) { if (canCapture) { directCapture(); } else { toast('3D 화면을 불러오지 못했어요. 인터넷 연결을 확인해 주세요.'); } return; }
+  unmountHero();
+  ar.canCapture = canCapture; ar.cameraOn = false;
+  var L = $('ar'); L.classList.add('open');
+  var bottom = canCapture ? '<button class="catch" type="button" data-act="arcatch" aria-label="포획"><span>포획</span></button>' : '<p class="arnote">인증이 승인되면 여기서 포획할 수 있어요.</p>';
+  L.innerHTML = '<div class="arbg" id="arBg"><div class="envbg"></div></div><div class="arhost" id="arHost"></div>' +
+    '<div class="top"><button class="x" type="button" data-act="arclose" aria-label="닫기">✕</button><div class="pill"><b>에너지몬</b><span>' + (canCapture ? '+100포인트' : '도감 몬스터') + '</span></div>' +
+    '<button class="x" type="button" data-act="artoggle" id="arCam" aria-label="카메라 켜고 끄기">AR</button></div>' +
+    '<p class="arhint" id="arHint"></p><div class="bar">' + bottom + '</div>';
+  try { ar.stage = new Stage3D($('arHost'), { ar: true }); ar.stage.setEnv(true); }
+  catch (e) { toast('3D 화면을 열지 못했어요.'); closeAR(); return; }
+  startArCamera();
+  clearTimeout(ar.hintT);
+  ar.hintT = setTimeout(function () {
+    var h = $('arHint'); if (!h) return;
+    h.textContent = motion.state === 'denied' ? '움직임 센서 권한이 꺼져 있어요. 화면을 드래그하면 둘러볼 수 있어요.' : (motion.state !== 'on' ? '폰을 움직여도 안 따라오면 화면을 드래그해 보세요.' : '폰을 천천히 돌려 보세요.');
+  }, 1600);
+}
+async function startArCamera() {
+  stopArCamera();
+  var ok = false;
+  try {
+    var s = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: 'environment' } } });
+    var bg = $('arBg');
+    if (!isOpen('ar') || !bg) { s.getTracks().forEach(function (t) { t.stop(); }); return; }
+    ar.stream = s; bg.innerHTML = '<video autoplay muted playsinline></video>';
+    var v = bg.firstChild; v.srcObject = s; v.play().catch(function () {}); ok = true;
+  } catch (e) { ok = false; }
+  ar.cameraOn = ok;
+  if (!ok) { var b2 = $('arBg'); if (b2) b2.innerHTML = '<div class="envbg"></div>'; }
+  if (ar.stage) ar.stage.setEnv(!ok);
+  var btn = $('arCam'); if (btn) btn.classList.toggle('off', !ok);
+}
+function stopArCamera() { if (ar.stream) ar.stream.getTracks().forEach(function (t) { t.stop(); }); ar.stream = null; ar.cameraOn = false; }
+function toggleArCamera() {
+  if (ar.cameraOn) { stopArCamera(); var b = $('arBg'); if (b) b.innerHTML = '<div class="envbg"></div>'; if (ar.stage) ar.stage.setEnv(true); var c = $('arCam'); if (c) c.classList.add('off'); }
+  else startArCamera();
+}
+function closeAR() {
+  clearTimeout(ar.hintT); stopArCamera();
+  if (ar.stage) { ar.stage.dispose(); ar.stage = null; }
+  var L = $('ar'); L.classList.remove('open'); L.innerHTML = '';
+  render();
+}
+function approvedProofId() { var p = todayProof(); return p ? String(p.id) : ''; }
+async function directCapture() {
+  try { var r = await api('captureMonster', me.userId, approvedProofId()); toast(r.monster + ' 포획! 포인트 ' + r.points + '점을 받았어요.'); }
+  catch (e) { toast(e.message); }
+  await refresh(true);
+}
+async function arCatch() {
+  var b = document.querySelector('[data-act=arcatch]'); if (!b || b.disabled) return;
+  b.disabled = true; b.firstChild.textContent = '...';
+  try {
+    var r = await api('captureMonster', me.userId, approvedProofId());
+    if (ar.stage) await ar.stage.catchAnim();
+    closeAR(); toast(r.monster + ' 포획! 포인트 ' + r.points + '점을 받았어요.');
+  } catch (e) { b.disabled = false; b.firstChild.textContent = '포획'; toast(e.message); }
+  await refresh(true);
+}
+
+/* ===== 세종대 지도 (OpenStreetMap 실제 건물·길 데이터) ===== */
+var MAPDATA = {"c":[37.5505,127.0742],"b":[["박물관","863,1368,-159,-178,340,-301,159,177"],["집현관","-444,-1361,-21,-408,-123,7,-4,-89,-102,5,26,497"],["주차빌딩","-207,2666,650,-593,119,143,-512,465,22,53,-18,61,-43,39,-66,24,-67,-10,-47,-35,-62,-73,50,-47"],["동천관 학술정보원","453,1277,-309,-324,-104,102,-48,-49,-116,112,51,49,-105,100,299,322"],["광개토관","-424,-578,-177,-171,-517,529,420,405,172,-176,-243,-233"],["대양홀","585,-1837,-7,-190,-46,0,-95,-282,-51,-75,-300,0,8,196,-34,169,-79,0,4,210,67,-2,4,29,484,-12,-4,-43"],["진관홀","-478,431,-217,221,-213,-205,216,-222"],["세종초등학교","-1380,2581,504,330,-48,72,-504,-330"],["영실관","-923,1768,533,559,-130,123,-533,-560"],["율곡관","116,1605,-256,-278,-170,167,252,270"],["용덕관","-460,1000,-70,-66,64,-67,-191,-180,-70,73,-66,-62,-177,186,327,308"],["충무관","284,1801,-615,549,-170,-181,617,-564"],["군자관","-80,-1239,-46,558,-370,-30,45,-558"],["모짜르트홀","24,-2290,-21,-312,-174,11,21,312"],["애지헌","42,412,-96,-97,-26,25,-121,-121,-16,16,-29,-28,-71,69,10,43,220,220"],["별관 평생교육원","-416,3166,-101,85,-338,-375,105,-89"],["세종관","617,-715,-95,-119,-206,163,-315,250,95,119"],["학생회관","782,-1315,-185,82,298,669,186,-82"],["다산관","367,1878,89,97,-30,26,27,30,-682,619,-101,-110,19,-17,-15,-16"],["주차타워","-156,656,-65,-67,-58,57,70,69"],["우정당","517,1331,170,196,-158,144,-40,37,-176,-195"],["무지개극장","3234,-3420,832,-408,-212,-428,-272,134,-35,-70,-318,156,34,70,-242,118"],["정문","1869,-1051,145,-70,-134,-275,-145,70"],["김원관","-866,-2482,358,-14,-10,-284,-547,16"],["2060,-3715,509,-272,-40,-74,79,-43,-135,-249,-71,38,-53,-99,-519,276,50,91,-75,40,127,235,76,-40"],["서울시민안전체험관","2589,1266,257,-81,-219,-688,-257,81"],["-1157,-991,130,79,66,-95,-122,-86"],["-1015,-905,75,49,66,-92,-49,-34,-26,-18"],["-1198,-865,101,75,61,-80,-111,-80"],["-1322,-760,95,93,101,-94,-99,-97"],["-889,-867,66,47,55,-62,-69,-58"],["광나루로16길 7","-4221,-3639,91,-37,-49,-118,-91,37"],["코리아교회","-4155,-3479,102,-42,-57,-138,-102,43"],["9-3","-4119,-3686,80,-35,-49,-111,-80,35"],["프리마호텔","-4074,-3324,86,-7,-11,-142,-113,8,9,120"],["7-3","-4038,-3523,99,-41,-49,-113,-98,42"],["치킨","-4220,-3315,48,-19,-38,-95,-49,19"],["-894,-698,-73,-60,70,-83,75,56,-20,25,13,12,-17,19,-14,-10"],["타이거하우스","-1207,-602,59,43,59,-81,-47,-41"],["-1058,-828,52,42,54,-72,-42,-29,-19,25,-11,-8"],["-1138,-725,65,56,43,-47,-34,-28,37,-39,-40,-34"],["-1133,-553,35,31,6,-5,21,14,52,-56,18,-23,-37,-25,-19,24,-28,-20"],["-1075,-657,74,58,55,-59,-72,-61"],["동아빌라","-1275,-1088,102,67,47,-67,26,-55,-95,-58"],["열린무대","3038,-1768,199,-47,7,123,-8,24,-32,15,-85,13,-29,-14,-29,-39"],["고객안내센터","1849,-1541,406,-8,-1,-86,-407,9"],["꿈마루","4168,-1179,128,120,197,-207,82,77,363,-381,-64,-61,-123,130,-58,-54,127,-133,-76,-71,-212,223,-12,-11"],["육각정","2665,-677,72,10,49,-64,-24,-73,-79,-11,-45,62"],["3287,-460,59,5,44,-17,30,-23,23,-46,7,-46,-43,-81"],["3470,-626,120,30,19,-79,-119,-30"],["서울상상나라","2539,-139,217,259,131,428,90,-21,30,101,206,-71,-23,-75,139,-42,-158,-374,-31,-294,-29,14,-40,-47,-85,-5,-54,17,-43,49,-128,-19"],["2897,1115,-44,-143,26,-42,117,-125,163,-120,156,-135,17,-30,31,-10,21,5,-5,7,-38,1,-16,19,-1,26,-59,56,-43,67,-37,173,-51,94,-119,101"],["3460,1360,32,-131,148,35,-31,132"],["키즈오토파크","3715,1088,-92,363,109,27,7,-27,100,25,85,-335"],["2588,-3342,93,137,113,-76,-93,-136"],["본다빈치뮤지엄","1348,-2683,228,327,499,-343,-228,-327"],["능동119안전센터","2451,1421,130,-44,-65,-188,-130,44"],["대양AI센터","1107,825,381,-329,-307,-350,-381,329"],["일성아파트 101동","-1406,1044,230,-9,28,672,-231,10"],["일성아파트 상가","-1860,424,211,-289,23,269"],["일성아파트 102동","-1639,960,500,-53,-84,-792,-275,29,65,609,-225,24"],["홍진구조실험센터","-874,1353,89,-80,-116,-119,-85,85"],["-4491,3905,1,30,-33,2,3,83,274,-8,2,45,165,-6,-7,30,33,7,7,47,-361,56,18,115,401,-63,5,28,89,-14,-23,-146,28,0,119,-470,-164,-35,-2,-94,-56,1,-71,378"],["44-2","-1061,-1129,50,34,64,-114,-52,-31,-44,75"],["세종대학교 외국인교직원 기숙사","-997,-1083,46,34,64,-99,-7,-3,12,-16,-43,-28"],["그린하우스","-1283,-1311,207,110,49,-84,75,-133,-216,-116"],["-989,-1247,82,-147,59,32,78,41,-103,144"],["-848,-1362,49,-90,-60,-33,-48,91"],["-1276,-933,35,-60,9,-17,-89,-54,-41,81"],["서린빌라","-1334,-849,58,-84,-86,-50,-59,97"],["-1457,-820,-19,36,84,54,33,-38"],["-956,-1516,41,-71,65,45,-25,44,-31,55,-70,-39"],["삼성AT빌라","-1369,-1091,-94,-49,94,-173,98,54"],["시티빌리지 가동","-1512,-1404,79,55,-22,35,13,7,-74,142,-99,-58"],["시티빌리지 나동","-1728,-1127,-53,94,142,79,31,-67,-31,-19,8,-16,-22,-14,6,-10"],["킹콩빌 1차","-1593,-993,29,-58,19,9,7,-11,61,30,-30,69"],["-1366,-983,45,-81,-48,-27,-48,82"],["35-8","-1421,-886,-65,-39,6,-12,40,-84,61,47"],["-1624,-934,19,-40,10,4,6,-13,37,25,3,-8,20,11,-21,41"],["-1515,-860,28,-59,57,37,-23,52"],["-1533,-825,12,-25,39,12,20,12,-25,46"],["하늘쉐르빌","-1795,-1279,117,66,123,-214,-103,-69"],["-1820,-1229,90,45,-27,44,-17,-8,-8,15,-69,-39"],["-1907,-1169,-2,81,102,39,40,-68,-99,-50,-8,10"],["-1764,-1576,-84,105,58,45,15,-14,21,15,72,-93"],["-1419,-1394,35,-68,103,57,-38,70"],["-1497,-1442,33,-62,32,21,13,-14,34,18,-38,58,-14,-9,-15,18"],["-1450,-1538,75,38,40,-78,-78,-40"],["-1341,-1735,-47,95,66,37,25,-42,-33,-18,19,-53"],["-1344,-1518,66,-116,110,54,-55,91,12,5,-7,14,-13,-7,-8,11"],["-1619,-1530,48,-92,87,43,-53,107"],["-1469,-1595,-95,-52,38,-72,97,49"],["-1425,-1695,-88,-40,41,-75,88,40"],["-1645,-1548,35,-64,-39,-20,-10,14,-59,-36,-24,47"],["-1591,-1657,-98,-45,10,-30,11,3,70,-135,101,44"],["-1596,-1890,38,-78,105,42,-37,80"],["-1460,-1840,33,-73,79,31,4,16,-20,47,-12,-6,-10,19"],["-1350,-1808,98,51,25,-40,-92,-65"],["-1263,-1652,66,-118,91,52,-60,113"],["-1147,-1599,65,-100,71,46,-66,94"],["-1056,-1547,59,-93,68,47,-16,17,8,8,-11,16,-11,-9,-35,45"],["-1278,-1890,-1,-23,49,-105,58,34,7,-11,38,18,-74,137"],["행복한그룻","-1177,-1835,71,-132,87,56,-78,132"],["-1058,-1753,80,-133,65,40,-83,135"],["-1217,-2048,98,48,27,-46,-105,-53"],["-1086,-1998,17,-36,76,45,-28,37"],["-988,-1937,25,-42,45,23,-31,42"],["-927,-1899,34,-53,27,19,-16,23,16,11,-14,27"],["-1536,-2015,34,-64,102,45,-28,72"],["-1408,-1955,33,-76,79,35,-29,76"],["-1483,-2119,49,-84,85,44,-42,94"],["-1356,-2060,23,-90,92,37,-39,89"],["-1422,-2228,42,-83,86,38,-39,89"],["-1316,-2181,41,-82,86,34,-39,85"],["-1361,-2336,170,77,25,-60,-153,-98"],["-1181,-2131,26,-66,34,17,5,-12,66,26,-41,92"],["-1117,-2234,29,-85,92,43,-43,75"],["-1288,-2501,28,-100,86,31,-48,112"],["-1241,-2644,20,-67,49,-10,55,28,-43,107,-54,-20,8,-24"],["-1188,-2435,55,-111,86,39,-41,102,-25,-13,-11,22"],["-1097,-2683,-36,95,15,0,71,25,6,-58"],["-1057,-2428,46,-112,53,84,-17,68"],["-1083,-2338,28,-73,80,35,-21,76"],["-972,-1693,92,-154,27,228,2,17"],["-1999,-1738,42,-80,90,39,-33,86"],["-1879,-1689,39,-82,103,43,-39,88"],["-1945,-1842,47,-101,85,45,-48,95"],["-1885,-1963,41,-86,80,35,-41,86"],["-1821,-2088,49,-94,74,35,-49,98"],["-1759,-2201,41,-92,78,39,-49,84"],["-1700,-2307,46,-49,59,16,-41,70"],["-1584,-2356,66,-43,0,-29,-83,39"],["-1819,-1799,45,-92,93,38,-41,99"],["-1768,-1920,44,-86,113,35,-52,92"],["-1698,-2049,58,-82,82,35,-41,94"],["-1638,-2160,39,-88,112,43,-46,80"],["-1580,-2266,31,-66,105,37,-37,70"],["-1527,-2350,42,-51,86,35,-35,57"],["-1463,-2409,6,-31,77,-20,22,0,-33,77"],["-1924,-1631,-58,120,91,37,53,-127"],["-1615,-330,-106,4,2,72,232,-9,8,201,-561,20,-8,-200,235,-9,-23,-629,65,-2,-1,-28,90,-3,1,28,45,-2"],["-2116,-962,2,39,-114,4,1,37,-76,2,-1,-36,-117,4,-2,-39,-33,1,-8,-221,380,-13,8,220"],["동심유치원","-1135,1658,-3,-129,120,-2,2,88,-35,41,-34,1,1,39,-32,0,-1,-38"],["이당관","-822,299,91,-96,-448,-417,-91,97"],["-2010,415,-10,-258,58,-3,-5,-118,111,-5,2,53,95,-4,4,83,-43,2,3,76,-42,2,4,95,-37,2,3,70"],["-1242,-233,-109,-3,1,-26,-29,-1,1,-36,30,1,9,-262,107,4,-2,60,51,1,-3,95,-50,-2"],["무방관","-1397,3514,73,-127,450,253,-73,127"],["서울교통공사 대공원승무사업소","1654,2021,24,-90,45,25,16,-36,32,5,135,-52,25,47,-54,27,87,47,-29,125"],["105동","-4208,3251,-104,47,-78,-138,111,-55,-40,-62,126,-58,167,281,-134,58"],["106동","-4555,3249,-75,-119,154,-75,76,120,-30,19,63,109,-127,71"],["104동","-4120,2855,-111,73,-86,-138,126,-80,-40,-63,114,-68,179,291,-133,59"],["103동","-4100,2489,-113,50,-79,-138,112,-55,-41,-63,126,-57,167,281,-121,66"],["102동","-4450,2358,-104,71,-71,-100,96,-59,-68,-91,128,-75,194,262,-114,77"],["-4673,-5190,-63,-63,102,-101,63,62"],["-4593,-5130,-58,-57,99,-97,86,86"],["-4543,-5035,-30,-81,118,-67,94,81"],["-4508,-4928,-36,-92,75,-28,35,92"],["-4423,-4958,-32,-81,108,-41,31,80"],["-4291,-4993,24,64,-316,118,-25,-64"],["-4678,-4981,-23,-57,112,-70,31,79"],["-4634,-4889,-21,-53,16,-6,-10,-25,90,-36,31,78"],["-3592,-4407,-142,-146,57,-54,90,93,37,-120,57,18,-60,199"],["-3745,-4567,-53,-59,55,-50,54,59"],["-3811,-4631,-111,-112,68,-67,111,113"],["-3935,-4754,-160,-166,133,-62,101,164"],["-3866,-4846,-65,-126,81,-41,65,126"],["-3772,-4754,-59,-57,76,-98,55,75"],["-3668,-4657,-102,-68,65,-96,102,69"],["-3485,-4680,-107,-52,65,-131,107,52"],["-3411,-4846,-118,-59,36,-71,62,31,28,-57,56,28"],["-3435,-4953,-73,-37,46,-91,74,38"],["-3559,-4889,-77,-36,40,-86,78,36"],["-3610,-4772,-84,-75,30,-86,101,47"],["-3735,-4905,-80,-107,93,-68,80,107"],["-3521,-4989,-119,-55,47,-100,119,55"],["-3472,-5089,-54,-75,50,-18,15,32,16,10,29,-45,24,15,-53,84"],["-3432,-5081,51,-92,65,-21,61,33,-75,136"],["예그리나II","-1850,-4838,8,-143,74,4,-8,143"],["예그리나I","-2024,-4834,20,-146,81,11,-20,146"],["-3828,-5113,-102,-84,62,-73,101,84"],["-4365,-5207,93,-94,80,79,-94,93"],["-4248,-5098,122,117,78,-81,-122,-117"],["-4091,-5118,80,-81,91,88,-80,82"],["-4084,-5293,-79,82,80,77,79,-82"],["-4058,-5282,37,-39,34,30,41,-45,62,57,-78,85"],["-562,-3731,-2,-75,135,14,2,56,-50,0,-5,10"],["KCC park Town","644,-4131,395,-227,-81,-139,-49,28,-48,-82,-147,85,-32,-54,-203,118,85,147,25,-14,31,52,-20,11"],["Villiv","-300,-4757,367,-133,-126,-342,-366,134"],["공차","-440,-3605,-31,-89,69,-24,31,89"],["276,-4876,136,-59,56,123,65,-29,57,115,-204,102"],["262,-4306,-148,-421,-186,64,138,393,116,-40,60,18"],["102,-5142,93,-44,-48,-83,2,-30,48,-30,61,115,178,-76,47,95,-334,153"],["오늘은등갈비","-621,-3655,134,-42,31,85,-230,89,-43,-122,59,-24"],["지오빌딩","1109,-4419,182,-109,22,15,28,45,-157,98,1,12,-28,16"],["-917,-4530,83,-28,6,19,56,-19,36,106,-138,47"],["-419,-3889,74,89,-26,14,-173,-39,-18,-32"],["-1960,-4018,91,356,-458,115,39,-196,206,-39,-25,-134,32,-42,39,-4,7,-38"],["오늘은등갈비","-861,-3572,90,-30,32,93,-90,30"],["-529,-4083,71,-22,41,134,-70,22"],["220,-4170,99,-35,42,115,-99,36"],["106,-4063,33,71,-117,16,-11,-74"],["-1990,-3493,194,-47,59,240,-58,15,13,55,-119,29,-31,-123,31,-8,-26,-103,-46,11"],["-23,-3929,55,134,284,-107,-20,-70"],["-70,-4400,30,-9,12,39,34,-11,58,143,-116,50"],["-891,-3637,47,140,-131,44,-48,-139"],["323,-4202,73,-29,58,144,-73,28"],["-686,-4477,63,-23,58,157,-85,31,-14,-37,22,-7"],["-1376,-3647,40,151,-85,22,22,79,-225,59,-43,-162,18,2,-20,-74"],["마당족발","-754,-4825,50,137,-77,25,-24,-100"],["-808,-4953,49,122,-59,68,-81,-92"],["102,-4139,78,-28,28,75,33,-2,15,40,-108,39"],["-743,-4618,76,-21,56,125,-90,29"],["-764,-3814,131,-18,11,78,-130,19"],["-639,-4292,72,-25,44,126,-125,44,-21,-59"],["-962,-4390,20,134,-215,31,-9,-66,70,-9,-10,-69"],["-1024,-4665,47,133,-86,30,-6,-16,-32,11,-15,-43,7,-10,-8,-22,23,-9,-16,-43"],["-938,-4831,-93,78,67,79,93,-78"],["-1070,-5202,101,-126,31,24,-11,13,28,22,-14,18,17,13,-8,10,37,28,-68,86"],["-898,-5041,41,-41,48,48,-41,40"],["-1184,-5547,-72,78,17,17,-86,92,190,173,158,-171"],["2113,-5229,72,-74,60,57,-73,74"],["2436,-5287,97,-68,73,104,-146,100,-49,-69,48,-33"],["2116,-5046,95,-89,60,64,-96,89"],["1939,-4996,85,-248,45,17,-49,159,-51,86"],["1642,-5213,22,-61,25,8,7,-19,86,31,21,-24,63,22,-39,109"],["1421,-5292,129,-130,76,74,-96,97,18,18,-33,34"],["1669,-5189,141,59,-23,83,-135,-82"],["1980,-4881,39,-67,77,-43,43,69,-134,85"],["2127,-5201,68,54,-86,81,-40,-23"],["-788,-3973,83,-37,35,78,-82,37"],["-1202,-3965,43,167,104,-26,-44,-167"],["-778,-4020,-27,-83,83,-26,27,83"],["1532,-5039,28,-51,128,70,-29,51"],["-927,-4013,23,113,90,-18,-23,-113"],["가츠시","1272,-4616,54,-57,115,109,-54,56"],["1399,-4696,65,108,24,-14,8,15,122,-72,-42,-71,-43,-16,-46,16,-8,-13"],["-1025,-3685,-17,-65,96,-26,18,66"],["-1040,-3971,88,-24,30,112,-88,24"],["-929,-4938,-79,-72,-125,137,80,71"],["-897,-3697,-20,-74,87,-28,39,79,-64,51,-19,-41"],["1484,-4937,34,-57,131,78,-34,57"],["-821,-4160,-23,-97,59,-13,22,97"],["-1231,-4980,90,-126,104,74,-66,92,-29,-21,-24,34"],["-1321,-4660,57,92,-66,40,-57,-92"],["626,-4728,86,-31,36,98,-85,31"],["-1842,-4760,78,2,-4,107,-77,-2"],["797,-4788,-65,28,46,106,65,-27"],["918,-4924,36,98,-70,26,-37,-99"],["-1403,-4569,49,68,-136,67,-14,-28,24,-12,-23,-47"],["1023,-4716,97,129,-56,42,-98,-130"],["-1461,-4689,39,14,27,58,-101,46,-39,-84"],["-1578,-4122,26,-9,9,14,26,-17,11,16,23,-16,51,76,-72,47"],["529,-4990,75,-26,45,124,-75,27"],["-2287,-3108,-70,-352,-462,90,69,352"],["-1640,-4657,95,1,-1,127,26,0,-1,67,-121,-1"],["-1650,-4720,5,252,-98,2,-5,-252"],["674,-5030,37,-14,28,75,-83,31,-35,-92,46,-17"],["749,-4915,48,105,-54,25,-48,-106"],["206숯불구이","-1019,-3513,30,106,-171,49,-31,-106"],["-2990,-3567,210,-45,28,128,-139,30,-42,9,-10,-17,-23,5"],["-1157,-4736,36,37,-91,88,-79,-81,58,-57,44,45"],["-1427,-4354,106,-71,34,93,-119,38"],["-2811,-3986,458,-82,34,184,-363,66,23,124,-268,48,-16,-92"],["-1876,-4037,297,-78,42,157,-79,21,4,15,-217,58"],["586,-4839,94,-37,37,94,-94,36"],["-1154,-4550,74,91,-105,84,-73,-91"],["-1688,-3827,124,-63,68,130,-124,64"],["-3035,-2933,-18,-79,82,-19,-36,-158,25,-17,-10,-24,20,-9,-3,-22,103,-18,48,259,-38,47"],["836,-5164,30,73,-73,30,-24,-58,16,-6,-7,-16"],["945,-5078,-35,12,6,20,-29,10,27,74,47,-17,-7,-22,14,-13"],["604,-5265,35,83,-101,43,-36,-83"],["909,-4956,-70,28,-25,-62,30,-12,-8,-20,40,-16"],["848,-5199,78,-36,52,112,-78,36"],["1608,-4822,-30,74,-133,-53,30,-74"],["2382,-5159,32,56,-109,64,-33,-55"],["793,-5274,34,76,-83,37,-35,-75"],["-179,-4618,-119,48,79,198,119,-47"],["-1535,-5347,32,16,-10,21,60,29,-59,120,-55,-26,-31,-32"],["-1137,-3727,66,-26,37,91,-67,26"],["193,-2657,47,-66,84,158,-23,8,-7,-13,-46,23"],["-1417,-3953,41,100,-61,25,14,35,-51,21,-55,-136"],["-684,-4102,111,-46,39,95,-111,45"],["-82,-2785,121,-3,5,171,-122,3"],["-591,-4016,55,-17,23,76,-55,17"],["69,-2802,157,26,-55,90,-108,-21"],["-1426,-5269,113,51,-48,104,-113,-51"],["-665,-3984,58,-20,25,69,-59,21"],["화양교회","-451,-2781,165,-1,3,242,-165,3"],["-980,-5015,42,-45,62,56,-42,46"],["-2255,-2710,162,5,11,272,-96,12"],["-3045,-2480,105,564,335,-63,115,31,7,-22,26,7,27,-96,-115,-31,-2,-28,11,-14,-69,-423"],["-2484,-2700,221,-10,5,98,-222,9"],["-4081,-2277,103,-147,188,-24,28,216,-95,12,17,103,-218,36"],["-3718,-2366,314,-43,10,76,59,42,-22,30,31,282,42,30,-38,53,18,93,-189,34,-82,-513,-128,18"],["옛날 의정부 부대찌개","-3000,-2227,60,311,200,-38,-5,-33,-14,2,-19,-161,18,-2,-2,-16,100,-12,-10,-80,114,-13,-47,-286,-197,32,30,169,-142,25,16,84"],["줄벼락","-3564,-2203,-11,-79,88,-116,93,65,59,42,-118,165"],["-2029,-2709,204,-17,25,289,-205,17"],["-1880,-2341,-141,271,-26,-13,-22,42,123,64,164,-313"],["-947,-5108,47,-48,29,28,-17,17,20,19,-42,42,-26,-25,11,-12"],["-2052,-5243,67,15,-29,137,-67,-15"],["-1961,-5224,66,14,-29,137,-67,-14"],["-1887,-5200,141,10,-7,88,-141,-11"],["-1408,-4858,115,15,-17,138,-116,-15"],["-1568,-4825,-10,-187,62,-3,28,36,1,77,-30,53"],["-2194,-5216,24,-73,100,31,-23,74"],["-1738,-4894,125,2,0,69,-125,-1"],["-1721,-4344,150,-14,23,26,10,47,-20,23,-153,15"],["-1723,-5038,61,-18,62,26,-3,53,-124,-9"],["-4360,-3208,-275,20,11,145,275,-20"],["-4100,-3143,3,261,189,-2,-3,-261"],["-3296,-3523,28,-124,162,36,-27,124"],["-3534,-3803,51,295,-104,18,-51,-295"],["-3665,-4002,22,133,61,-10,-22,-133"],["-4290,-4646,-189,93,43,86,189,-94"],["-4668,-3844,69,163,97,-40,-69,-163"],["-1548,-2588,96,-33,0,97,-66,22"],["-1986,1161,-234,177,52,67,234,-177"],["-1847,1445,181,263,-74,50,-180,-263"],["-4515,270,82,180,131,-58,-83,-181"],["세종대학교 기숙사 사임관","-270,3536,234,145,104,-210,-220,-119"],["상헌 빌라","-77,3359,132,88,95,-188,-108,-97"],["-652,2686,348,374,159,-149,-322,-350"]],"r":[[2,"725,4186,380,238,1015,700,442,445,307,391,1085,1664"],[2,"-3296,-2752,-263,-1596,258,-662,216,-406,211,-337"],[1,"-1166,1816,696,732,852,-800,-145,-153"],[1,"-920,1540,355,367,271,-259"],[1,"-1516,2760,125,-695,814,-908,963,-1010,-344,-401,-93,-269,174,-232,56,-182,30,-348,695,-347"],[1,"209,-1285,-297,-58,-593,43"],[1,"-51,-523,-447,443"],[1,"-88,-1343,3,-558,-603,18"],[2,"303,-4507,616,-164"],[2,"-171,-6146,148,805,165,458,386,881,54,157"],[2,"919,-4671,288,452"],[2,"2045,-5588,-245,813,-15,188"],[2,"-292,-5255,-347,117"],[2,"4906,4965,-689,-1497"],[2,"4919,2524,-528,681,-174,263,-343,455,-229,220,-294,133"],[2,"4922,6323,-1048,-2400,-183,-498,-240,-741,-123,-247,-234,-639,97,-288"],[2,"2282,1587,539,-190,1079,311,119,55,499,357,164,198,237,206,617,397"],[3,"-5908,-2459,691,1484,703,1623,1853,4098"],[2,"-3296,-2752,228,920,263,1339,161,1055,37,856,69,326,80,199,339,412,396,275,2448,1556"],[3,"-5908,-2459,226,-2,330,-36,2056,-255"],[3,"-3296,-2752,1511,-294,1380,-433"],[2,"2101,-5822,248,87,62,79,42,101,-238,185,-126,161,-105,266,-148,41"],[2,"-5964,-4262,64,1,1741,-675"],[2,"-4914,-5687,1355,1339"],[2,"-6198,-3092,91,-26,2002,-180,717,-40"],[2,"-4515,-2609,-827,-1868"],[2,"-4732,-4722,627,1424"],[2,"-3559,-4348,-854,351"],[2,"-3511,-4038,1136,-124,336,45,69,-30"],[2,"-2698,-3439,623,-604,36,-74"],[2,"-2375,-4162,35,-327,180,-563"],[1,"-4408,-5184,391,-404,43,-18,216,-294"],[1,"-3929,-5667,715,485"],[1,"-4159,-4936,704,-297,144,-12"],[2,"-3123,-5342,852,260,393,95,-19,182,317,41,95,-62,53,-117,-5,-80,-134,-78,-97,-114,-334,-45,-168,-62"],[2,"-2271,-5082,30,-112,71,-128,15,-145"],[2,"-1059,-4740,107,113,182,776"],[2,"919,-4671,-259,-607,94,-50"],[2,"-3459,-3711,231,-16,46,-344"],[2,"919,-4671,272,-384,355,-401"],[2,"1050,-4468,227,-223,438,-706,105,-282"],[2,"-850,5979,-727,-1638"],[2,"1872,673,-267,86,-1029,949,53,546,-435,525,-492,762"],[2,"-4230,1268,1586,-706"],[2,"-4121,-2662,7,103,-36,225,-8,224,89,605,72,825,686,1538"],[2,"-5217,-975,1148,-530"],[2,"-4913,-287,916,-393,1061,-512"],[2,"-960,-3209,-63,76,-162,61,-31,38,2,44,79,198,284,416,38,769,-368,635"],[2,"-3068,-1832,333,-57,158,3,154,19,167,51,487,216,337,229,369,205"],[2,"-2663,456,497,26,310,-27,39,16"],[2,"-2166,482,228,158,19,118,-25,173"],[2,"-4158,-2110,-219,-73,-262,617,126,278"],[2,"-3485,459,770,-330"],[2,"-4278,-566,272,529"],[2,"-4476,-478,-517,-1090,273,-629,9,-50,-52,-330"],[2,"-1226,-2778,-1068,-50"],[2,"-2146,-2133,97,-265,-15,-411"],[2,"-1769,-1600,441,-875,102,-303"],[2,"-1568,-1994,254,109,473,326"],[2,"-2035,-1722,318,-627,147,-87,163,-48,79,9"],[2,"-2875,-865,306,-24"],[2,"-4597,-424,411,933"],[2,"-4514,648,649,-274"],[2,"-4107,475,268,611"],[2,"-3521,943,-56,-159,-76,22,-212,-432,-103,-254,-55,-17,-70,103,-136,-302,-71,-44,-146,59"],[2,"-2631,798,-244,256,-473,411,-259,82,-374,-175"],[2,"-4161,1238,180,134,693,-296"],[2,"-3373,883,85,193,148,208"],[2,"-3524,1174,131,308"],[2,"-3313,1434,231,128,196,189,178,230,51,155,102,188,141,134,127,55,233,56,75,-116"],[2,"-2886,1751,-218,335,-125,319,-54,254,-114,113,-126,54"],[2,"-3147,2750,259,-257,78,-172,153,-185"],[2,"-2287,2513,-49,108,-626,518,-272,15,-113,60"],[2,"-2315,3971,-283,557,-130,55"],[2,"-2315,3971,-228,-108,-186,-127"],[2,"-2944,3259,-140,234"],[2,"-3018,3940,189,-83,76,-138"],[2,"-2729,3736,357,-576"],[2,"-2543,3863,356,-596"],[2,"-2515,2769,399,220"],[2,"-2187,3267,-353,-204"],[2,"-1577,4341,-135,-283"],[2,"-567,4554,-420,-171"],[2,"-410,5134,43,-224,639,163,61,-368,111,-316,311,-98"],[2,"333,4705,-144,-38,-70,-45,-319,-311,-90,-12,-168,-373,-49,-31,-172,-15"],[2,"-343,3514,-67,134,29,90,367,234,-87,139"],[2,"-33,3702,224,-487,631,-723,1432,383,44,0,336,-134"],[2,"-8,3086,182,167"],[2,"156,3291,146,156,204,146,470,146,418,272,364,252,343,305"],[2,"2120,5124,26,-374,-45,-182,9,-508,203,-405,567,-283"],[2,"421,2951,371,234,664,180,857,290"],[2,"1254,3310,503,-1743,367,-140"],[2,"1685,1790,-1077,231"],[2,"877,1419,75,233,483,-175,-141,-441"],[2,"576,2774,767,210"],[2,"1818,2751,116,-373"],[2,"1610,3417,179,-674"],[2,"1933,3532,193,-691"],[2,"505,4037,147,-218,41,-160"],[2,"815,4236,284,-417"],[2,"1105,4424,289,-413"],[2,"273,3121,37,51,396,234"],[2,"792,3185,-115,290"],[2,"1344,3741,112,-376"],[2,"1380,3642,212,91,217,137"],[2,"1040,3252,-66,166,86,172"],[2,"3248,4269,-1102,481"],[2,"3052,3814,-739,337"],[2,"2678,3982,198,451"],[2,"1809,3870,152,-329"],[0,"-1081,-2795,1306,-29"],[0,"-101,-3978,-257,93"],[3,"3780,5514,-873,-2039,-783,-2048,-530,-1571,-1245,-2647,-337,-594"],[0,"-358,-3885,50,142,-8,96,-36,44,-85,33,-1199,392,-279,74,-1321,240"],[0,"2120,-4565,-178,-218"],[2,"-1152,5172,49,-149,-81,-30,197,-610"],[2,"-3607,1547,-82,342,-103,99,-95,42"],[2,"-2261,1663,17,-76,-136,-235,408,-308,28,-113"],[2,"-2611,1256,146,6,408,-357,60,-240,-23,-82"],[2,"-3656,2754,-138,87,-179,72"],[2,"-3486,3132,-108,80,-36,106,-161,720,-11,171,36,342,19,671,-14,245,-44,216,-26,30"],[2,"-4709,3615,139,509,119,253,172,275"],[2,"-4087,1808,-826,58"],[2,"-3973,2913,-34,25,-8,49,52,243,-32,88,-300,142,-949,355"],[2,"-4590,712,-67,31,-123,125,-23,50,-35,154,14,317,180,23,190,-3,170,-28"],[2,"-4513,-1288,158,333,71,14,6,375"],[2,"-3544,-232,286,590"],[2,"-4146,-2057,521,-38,59,349,498,-86"],[2,"-1328,-2475,201,148,-187,442"],[2,"2699,2659,629,-222,461,-99,111,-630"],[2,"2867,3093,644,-217"],[2,"2964,3335,368,-151"],[2,"-3388,-3338,829,-122,1789,-391,459,-118"],[1,"-4107,-5494,422,359"],[2,"-1970,-4147,55,-147,76,-76,374,-60,189,-90,102,-86,340,-388,117,-53"],[2,"-1970,-4147,47,31,138,492,176,523"],[2,"-1400,-3711,-22,-79,72,-56,-17,-64,128,-105,405,-82"],[1,"-1947,-4191,451,-70,-18,-113"],[2,"-1241,-4353,336,-65"],[2,"-1087,-1123,142,104"],[2,"-945,-1019,95,67,-143,185"],[2,"-1363,-732,-18,23,129,63,103,-69,56,43"],[2,"-1523,-1436,155,-319"],[2,"-1723,2630,34,-59,64,-471,32,-97,129,-164"],[2,"-1464,1839,47,-59,-55,-119,-104,-656,-82,-32,-56,-77,-103,-425"],[1,"-1625,2100,-134,-68"],[2,"-4306,-3754,379,-149"],[2,"-4245,-3617,241,-97"],[2,"-4262,-3655,-143,54"],[2,"-4012,-4394,-228,-511"],[2,"3789,2338,-6,337"],[2,"3451,2684,498,-13,565,-148,168,-205"],[2,"3702,3455,300,-269"],[2,"4336,1990,-139,257"],[2,"3949,2671,85,107"],[2,"4002,3186,83,-88,71,-43,65,-193,-58,-47"],[2,"3104,3671,587,-246"],[0,"2450,8193,-59,-53,-626,-1391,-918,-2350"],[0,"2279,8280,-1035,520,-1225,579,-107,4,-360,-108,-644,-1397,-57,-67,-210,-467,-194,-325,-619,-1436,-619,-1374,-668,-1416,-333,-805,-369,-750,-249,-635,-722,-1618,-555,-1155"],[2,"-2461,4774,283,-500,89,-467,47,-98,32,-25,72,3,831,430"],[0,"4419,7148,-715,-1594,-699,-1723,-470,-1052,-514,-1314,-258,-761,-35,-54,-132,-489,-37,-226,-661,-1387,-90,-134,-39,-133,-478,-1016,-66,-89"],[0,"1770,-1254,146,-68"],[0,"1835,-1120,146,-69"],[0,"1802,-1187,145,-71"],[2,"1806,-1361,0,0"],[0,"3845,-1308,334,268,310,95,481,94,985,-47,452,91,426,141,274,132,320,185"],[0,"3793,-1925,7,173,-113,87"],[0,"3786,-3300,88,212"],[0,"3323,-2441,91,-22"],[0,"3800,-1752,546,-452,330,-302,152,-79,305,-300,512,-9,49,-24"],[0,"3098,-2135,77,-131,17,22,141,57,46,9,53,-33,-87,-218,-39,-19,-31,12,-80,92,-20,78"],[0,"3071,-1904,27,-231,-27,-139,-66,-120"],[0,"3071,-2274,154,-284,208,-262,185,-152,256,-116,1131,29,606,-50,223,3,116,42,139,85,143,-50,191,43,378,-77"],[0,"3487,478,275,-6,214,76,168,34,599,-67,525,54,592,237,409,31,83,56,153,428"],[1,"2107,313,421,-133"],[1,"2475,-6,-424,149,113,342"],[1,"1844,586,735,-226,-152,-534"],[0,"2420,-687,68,-315,-101,-179,-99,35,-30,97,31,125,156,123"],[0,"2617,-378,-96,-141,-56,-14,-48,-37,3,-117"],[0,"2491,-268,13,-170,42,-144,71,-58,26,-1,48,77"],[0,"2120,885,82,-29"],[1,"2359,659,137,392,-8,39,-67,56,-92,7,-50,-48,-91,-294,7,-32,19,-28,80,-29,99,36"],[0,"3949,1731,74,-59,173,-43,64,-77,170,-313"],[1,"4193,-4294,251,-157,322,-116,156,-23,318,80"],[1,"4172,-3981,428,-184,237,-70"],[1,"3888,-4581,123,252,182,35,55,94,509,-197,57,21,28,169,-38,71,-54,49,-507,261,-52,-30,-43,-285,100,-59"],[1,"1361,-3681,191,452"],[1,"619,-3396,180,-98,35,77,762,-383"],[1,"821,-3891,191,387"],[1,"3812,-5410,166,646,-19,106,-71,77,-386,177,-14,-38,-481,240,-68,61,-173,73,-237,-459"],[2,"-1576,1005,475,-57,-110,-844"],[0,"-1211,104,-357,34"],[2,"-1817,471,276,-18,-27,-315"],[0,"-1167,-3030,818,-288,178,-55,50,4"],[0,"-349,-3318,-88,-252"],[2,"-1541,453,12,107"],[2,"-1707,464,12,125,25,47,85,26,39,-22"],[2,"-935,5787,72,-190,-16,-62,24,-237,272,-602,13,-207,-154,-813,172,-296"],[1,"-681,-1300,-54,-114,-9,-70,19,-114,-17,-284,54,-1,-5,-342,594,-25,14,349"],[1,"-681,-1300,65,538,-536,539,721,674,-50,47,263,276"],[1,"-1282,-1288,118,-227,48,27"],[0,"-778,-1508,-39,-32"],[2,"-1393,-1349,-125,249,108,54"],[0,"-1555,-1046,4,-10"],[2,"-1518,-1100,-76,-38"],[0,"-1348,-1071,-27,-12"],[2,"-1438,-1060,-95,200"],[2,"-1656,-1525,-103,130,-110,217"],[0,"-810,-917,-40,-35"],[2,"-1306,-1301,53,-107"],[2,"-1181,-972,-26,63"],[2,"-1207,-909,-156,177"],[2,"-1214,-2119,385,186"],[2,"-1226,-2778,91,-14"],[2,"-2729,3736,-355,-243"],[2,"-3084,3493,-111,46"],[2,"4034,2778,129,37"],[2,"1809,3870,301,190"],[2,"2313,4151,195,441"],[2,"-1712,4058,-466,216"],[2,"-2538,1744,277,-81"],[0,"4690,7019,-737,-1597,-773,-1781,-83,-361,-694,-1650,-750,-1979,-1334,-2884,-6,-240"],[0,"95,-3734,468,-166,604,-385,628,-435,147,-63,736,-415,1263,-361,436,-101,295,-103,913,-35,3961,-335"],[0,"225,-2824,-57,-74,-213,-408,-76,-63"],[0,"-2761,4931,-789,-1766,-2426,-5286"],[0,"-3186,-11413,139,407,1612,4227,1077,2894"],[0,"95,-3734,85,227"],[0,"-81,-3346,257,-109"],[0,"196,-3477,117,4"],[3,"9809,-5939,-1900,106,-3122,236,-2035,560,-693,398,-244,115"],[0,"664,4222,1038,2626,601,1360,-24,72"],[2,"-1417,1780,123,-3"],[2,"-1294,1777,33,-28"],[2,"-1185,306,122,0,19,52"],[2,"-1044,358,-26,11"],[1,"-102,664,617,663"],[1,"386,147,511,522"],[1,"897,669,41,-37"],[0,"835,601,-546,478"],[3,"-70,-3494,-1738,555,-486,111,-1455,230,-1613,217,-293,27,-330,-4"],[3,"12,-3385,-82,-109"],[3,"44,-3535,212,376,1429,2994,597,1752"],[3,"373,-3663,-79,75,-59,112,-10,50,31,267"],[1,"-417,-492,153,163"],[1,"-498,-80,-172,-152,253,-260"],[1,"-322,885,-271,-277,112,-110"],[3,"1785,-4587,30,63"],[3,"1815,-4524,-556,375,-372,223,-398,211,-445,180"],[3,"122,-3659,376,-146,289,-147,998,-635"],[3,"-1031,-6202,464,1250"],[3,"-125,-3571,-165,-339,-848,-2254"],[3,"-405,-3479,280,-92"],[3,"-6,-3611,128,-48"],[3,"-125,-3571,119,-40"],[3,"-70,-3494,-55,-77"],[3,"-6,-3611,50,76"],[3,"44,-3535,-114,41"],[3,"2867,3093,998,2378"],[3,"2199,1615,83,-28"],[3,"2282,1587,417,1072"],[3,"2699,2659,168,434"],[3,"1785,-4587,917,-521,2043,-551,439,-29"],[3,"-2756,4787,-900,-2033,-1226,-2665,-67,-184,-745,-1656,-291,-607"],[3,"-2823,4360,6,139,41,92,-26,14,-42,-17"],[0,"-3621,3019,219,-101"],[0,"-4441,1233,236,-108"],[2,"-2461,4774,1549,-760,188,-338"],[0,"1102,-1547,-204,95"],[2,"4063,1794,77,-41,658,2,221,133,92,111,65,143,38,148,223,79,438,10,288,-70,33,58"],[0,"-4456,-5051,132,-49"],[2,"2431,8376,-693,-1569,-875,-2224,-138,-397"],[0,"-1521,-4418,7,44"],[0,"-2375,-4162,64,-55,55,4,-1,-44"],[0,"-2257,-4257,55,-55"],[0,"-2257,-4257,149,-1,0,-13"],[0,"-2262,-4734,79,56,45,83"],[0,"-1915,-4294,-18,-122"],[0,"196,-3477,-16,-30"],[3,"-567,-4952,387,1003,121,267,53,71"],[0,"-1413,-3251,85,224"],[0,"-3398,-2837,46,280"],[0,"-1167,-3030,-123,-7,-774,228"],[1,"769,-5023,121,-35"],[1,"714,-5152,-589,221"],[1,"1067,-4442,-60,29"],[1,"-78,-4720,-34,-105"],[2,"170,-4818,-596,231"],[2,"-1059,-4740,-182,-148"],[2,"-2979,-1420,-272,10,-516,63"],[0,"3288,-2638,71,64,165,327,119,119,150,203"],[0,"3643,-2128,244,-17,225,-109,56,-10"],[0,"3996,-2195,56,98"],[0,"3419,-2190,146,-10"],[0,"-3178,-2582,1114,-227"],[0,"-3352,-2557,174,-25"],[0,"-3398,-2837,-1135,172"],[0,"-3236,-2864,-162,27"],[0,"-2882,-11526,691,1915,46,31,51,153,-29,14,-8,41,158,455,1401,3751,471,1188"],[0,"-101,-3978,70,188,74,55,52,1"],[0,"176,-3455,20,-22"],[0,"313,-3473,358,-250,1292,-744,767,-484,1802,-487,185,-46,364,-42,1346,-113,2284,-164,858,-41"],[0,"-4533,-2665,-1170,128,-85,-11,-84,-52,-46,-83"],[0,"-1081,-2795,-91,-208,5,-27"],[0,"-5687,-2170,1,-75,50,-39,898,-129,1386,-144"]],"p":[["park","서울어린이대공원","457,-3535,-87,153,11,196,1010,2112,47,157,393,947,477,1438,106,34,415,-148,1036,304,174,78,155,-32,610,1,249,145,108,136,80,280,160,50,138,7,148,-433,268,94,18,-65,334,94,-83,239,194,-17,195,-244,143,-90,111,-20,468,22,91,76,206,386,680,7,579,-306,480,-258,29,-168,542,-275,546,-317,2087,1012,16,-30,468,233,225,-480,141,-423,-736,-940,-222,563,-2013,-787,479,-1212,-978,-842,-54,-90,-17,-115,7,-80,391,-1259,-120,-397,4,-248,75,-165,261,-236,-685,-760,-35,-94,-21,-256,-250,-261,-468,28,-468,64,-1225,107,-2512,159,-1139,274,-945,280"],["park","광진광장","-1140,-2985,78,167,1241,-29,-258,-488,-63,-26,-992,333"],["park","화양동 느티나무 공원","-2343,-4230,34,-257,79,-246,469,101,10,212,-140,24,-55,54,-34,109,-48,45,-289,-9"],["park","일성공원","-1006,897,245,-261,-203,-187"],["playground","일성 놀이터","-1142,1504,-16,-442,130,-5,16,443"],["pitch","세종대학교 운동장","600,278,551,-490,-389,-486,-600,484"],["pitch","장안초등학교 운동장","-2252,-281,363,-12,-14,-523,-371,11"],["playground","장안초등학교 놀이터","-1577,-331,98,-3,-3,-228,-100,4"],["garden","","-2164,-4303,-2,-167,184,-3,2,167"],["park","군자어린이공원","-957,4060,-207,502,-160,-317"]],"w":[["573,1195,-165,-181,414,-375,166,181"],["1767,-555,109,219,52,56,83,7,59,-73,-12,-113,17,-47,111,-183,54,-42,86,-12,113,37,145,-47,-11,-18,76,-94,129,17,38,-22,6,-44,2,-173,-21,-59,-45,-15,-187,36,-178,-63,-116,17,-58,22,-46,55,-321,447,-73,38"],["3667,-2227,145,-38,63,7,38,-133,295,-126,187,-128,35,-160,60,-44,-8,-50,-97,-71,-329,-26,-268,33,-170,132,-92,115,26,73,78,-13,29,26,-3,64,-105,36,-44,89,86,177"]]};
+var MAPPAL = {
+  day:   { fog: 0xDCEBF7, ground: 0xF1EBDD, park: 0xA8D58E, pitch: 0xE9B58A, water: 0x8FD0F2, casing: 0xD7CEBB, fill: [0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFE9B0], bld: 0xE6D2B4, tree: [0x4FA45F, 0x3E8F52], hemiS: 0xFFFFFF, hemiG: 0xCFC6B4, hemiI: 1.15, key: 0xFFF2D6, keyI: 1.0 },
+  dusk:  { fog: 0xF0B49C, ground: 0xB99AB8, park: 0x8FB09A, pitch: 0xE09A78, water: 0xA9B4F0, casing: 0x7B5D8A, fill: [0xFFE3C7, 0xFFE3C7, 0xFFEBD3, 0xFFD58A], bld: 0xE2B9C4, tree: [0x5E8E80, 0x4A7A72], hemiS: 0xFFD9B0, hemiG: 0x6A4A86, hemiI: 1.0, key: 0xFFB27A, keyI: 1.05 },
+  night: { fog: 0x1A2466, ground: 0x24307F, park: 0x1F5B80, pitch: 0x5A4AA8, water: 0x2F86F0, casing: 0x141B58, fill: [0x4A5FE0, 0x5B70F0, 0x7A8CFF, 0xA9B6FF], bld: 0x5A64A8, tree: [0x1E7C8F, 0x176A80], hemiS: 0x9FB0FF, hemiG: 0x1A2260, hemiI: 1.0, key: 0x8B9BFF, keyI: 0.8 }
+};
+var mapState = { x: 187, z: 122, heading: 0, yaw: 0.35, gps: 'off', watch: null, tx: null, tz: null, said: false };
+var MAPC = null, mapStage = null;
+
+function mdec(s) {
+  var v = s.split(','), x = +v[0], y = +v[1], o = [[x / 10, y / 10]];
+  for (var i = 2; i < v.length; i += 2) { x += +v[i]; y += +v[i + 1]; o.push([x / 10, y / 10]); }
+  return o;
+}
+function mArea(p) { var a = 0; for (var i = 0; i < p.length; i++) { var j = (i + 1) % p.length; a += p[i][0] * p[j][1] - p[j][0] * p[i][1]; } return Math.abs(a) / 2; }
+function mCent(p) { var x = 0, y = 0; p.forEach(function (q) { x += q[0]; y += q[1]; }); return [x / p.length, y / p.length]; }
+function mapPrep() {
+  if (MAPC) return MAPC;
+  var M = { b: [], r: [], p: [], w: [], by: {} };
+  MAPDATA.b.forEach(function (it) {
+    var n = it.length === 2 ? it[0] : '', pts = mdec(it[it.length - 1]);
+    var o = { n: n, pts: pts, area: mArea(pts), c: mCent(pts) }; M.b.push(o); if (n) M.by[n] = o;
+  });
+  MAPDATA.r.forEach(function (it) { M.r.push({ t: it[0], pts: mdec(it[1]) }); });
+  MAPDATA.p.forEach(function (it) { M.p.push({ k: it[0], n: it[1], pts: mdec(it[2]) }); });
+  MAPDATA.w.forEach(function (it) { M.w.push({ pts: mdec(it[0]) }); });
+  MAPC = M; return M;
+}
+/* 지도 좌표(동쪽 x, 북쪽 y)는 3D에서 (x, 높이, -y) */
+function mkAcc() { return { p: [], n: [], c: [] }; }
+function accGeo(acc, geo, col, topK, sideK) {
+  if (geo.index) geo = geo.toNonIndexed();
+  var P = geo.attributes.position.array, N = geo.attributes.normal.array, top = new THREE.Color().copy(col).multiplyScalar(topK), side = new THREE.Color().copy(col).multiplyScalar(sideK);
+  for (var i = 0; i < P.length; i += 3) {
+    acc.p.push(P[i], P[i + 1], P[i + 2]); acc.n.push(N[i], N[i + 1], N[i + 2]);
+    var c = N[i + 1] > 0.5 ? top : side; acc.c.push(c.r, c.g, c.b);
+  }
+  geo.dispose();
+}
+function accFlat(acc, tri, y, col) { // tri: [x,z,x,z,...] 삼각형들
+  for (var i = 0; i < tri.length; i += 2) { acc.p.push(tri[i], y, tri[i + 1]); acc.n.push(0, 1, 0); acc.c.push(col.r, col.g, col.b); }
+}
+function accStrip(acc, pts, w, y, col) {
+  var h = w / 2, tri = [], i;
+  for (i = 0; i < pts.length - 1; i++) {
+    var a = pts[i], b = pts[i + 1], dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1e-6, nx = -dy / L * h, ny = dx / L * h;
+    var a1 = [a[0] + nx, -(a[1] + ny)], a2 = [a[0] - nx, -(a[1] - ny)], b1 = [b[0] + nx, -(b[1] + ny)], b2 = [b[0] - nx, -(b[1] - ny)];
+    tri.push(a1[0], a1[1], a2[0], a2[1], b1[0], b1[1], a2[0], a2[1], b2[0], b2[1], b1[0], b1[1]);
+  }
+  for (i = 0; i < pts.length; i++) { // 꺾이는 곳을 메우는 육각 조각
+    var cx = pts[i][0], cz = -pts[i][1];
+    for (var k = 0; k < 6; k++) { var s = k / 6 * 6.2832, e = (k + 1) / 6 * 6.2832; tri.push(cx, cz, cx + Math.cos(s) * h, cz + Math.sin(s) * h, cx + Math.cos(e) * h, cz + Math.sin(e) * h); }
+  }
+  accFlat(acc, tri, y, col);
+}
+var TREEG = null;
+function accTree(acc, x, z, sc, col) {
+  if (!TREEG) { var g = new THREE.IcosahedronGeometry(2.6, 0); g.scale(1, 1.25, 1); g.translate(0, 5.2, 0); var t = new THREE.CylinderGeometry(0.35, 0.5, 2.6, 5); t.translate(0, 1.3, 0); TREEG = [g.toNonIndexed(), t.toNonIndexed()]; }
+  var cs = [col, new THREE.Color(0x8A6A4A)];
+  for (var q = 0; q < 2; q++) {
+    var P = TREEG[q].attributes.position.array, N = TREEG[q].attributes.normal.array, c = cs[q];
+    for (var i = 0; i < P.length; i += 3) { acc.p.push(x + P[i] * sc, P[i + 1] * sc, z + P[i + 2] * sc); acc.n.push(N[i], N[i + 1], N[i + 2]); acc.c.push(c.r, c.g, c.b); }
+  }
+}
+function accToMesh(acc, mat) {
+  var g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(acc.p), 3));
+  g.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(acc.n), 3));
+  g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(acc.c), 3));
+  return new THREE.Mesh(g, mat);
+}
+function accPoly(acc, pts, y, col) {
+  try {
+    var sh = new THREE.Shape(pts.map(function (q) { return new THREE.Vector2(q[0], q[1]); }));
+    var g = new THREE.ShapeGeometry(sh); g.rotateX(-Math.PI / 2);
+    var P = g.index ? g.toNonIndexed() : g, A = P.attributes.position.array;
+    for (var i = 0; i < A.length; i += 3) { acc.p.push(A[i], y, A[i + 2]); acc.n.push(0, 1, 0); acc.c.push(col.r, col.g, col.b); }
+    g.dispose();
+  } catch (e) {}
+}
+
+function mIn(pts, x, y) { var c = false; for (var i = 0, j = pts.length - 1; i < pts.length; j = i++) { var a = pts[i], b = pts[j]; if ((a[1] > y) !== (b[1] > y) && x < (b[0] - a[0]) * (y - a[1]) / (b[1] - a[1]) + a[0]) c = !c; } return c; }
+function mFree(M, cx, cy, r0) { /* 건물 밖에서 가장 가까운 빈 자리 */
+  function ok(x, y) { for (var i = 0; i < M.b.length; i++) { var b = M.b[i].pts; if (mIn(b, x, y)) return false; } return true; }
+  if (r0 === 0 && ok(cx, cy)) return [cx, cy];
+  for (var r = Math.max(r0, 4); r < 120; r += 5) for (var k = 0; k < 16; k++) { var a = k / 16 * 6.2832, x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r; if (ok(x, y)) return [x, y]; }
+  return [cx, cy];
+}
+/* 스톱(거점)과 몬스터 자리: 이름이 있는 실제 건물 위에 놓는다 */
+var MAP_STOPS = [
+  { id: '학생회관', label: '학생회관', kind: 'dumbbell', c1: '#6D35E8', c2: '#B58CFF', mission: true },
+  { id: '광개토관', label: '광개토관', kind: 'shoe', c1: '#D99A0C', c2: '#FFD76A' },
+  { id: '대양홀', label: '대양홀', kind: 'bottle', c1: '#1A74D8', c2: '#72C8FF' },
+  { id: '정문', label: '정문', kind: 'flag', c1: '#5B45D6', c2: '#A38CFF' }
+];
+function badgeTex(kind, c1, c2) {
+  var cv = document.createElement('canvas'); cv.width = cv.height = 256; var g = cv.getContext('2d');
+  var gl = g.createRadialGradient(128, 128, 70, 128, 128, 126); gl.addColorStop(0, c1 + 'AA'); gl.addColorStop(1, c1 + '00'); g.fillStyle = gl; g.fillRect(0, 0, 256, 256);
+  var d = g.createLinearGradient(0, 44, 0, 212); d.addColorStop(0, c2); d.addColorStop(1, c1);
+  g.beginPath(); g.arc(128, 128, 82, 0, 6.2832); g.fillStyle = d; g.fill(); g.lineWidth = 8; g.strokeStyle = 'rgba(255,255,255,.95)'; g.stroke();
+  g.beginPath(); g.arc(128, 128, 70, 0, 6.2832); g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,.16)'; g.stroke();
+  function rr(x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+  g.fillStyle = '#fff'; g.strokeStyle = '#fff'; g.lineJoin = 'round'; g.lineCap = 'round';
+  g.shadowColor = 'rgba(0,0,0,.25)'; g.shadowBlur = 6; g.shadowOffsetY = 3;
+  if (kind === 'dumbbell') { rr(92, 120, 72, 16, 6); g.fill(); rr(72, 96, 20, 64, 8); g.fill(); rr(164, 96, 20, 64, 8); g.fill(); rr(56, 108, 16, 40, 6); g.fill(); rr(184, 108, 16, 40, 6); g.fill(); }
+  else if (kind === 'shoe') { g.beginPath(); g.moveTo(76, 154); g.lineTo(76, 112); g.quadraticCurveTo(96, 108, 108, 122); g.lineTo(122, 136); g.lineTo(158, 140); g.quadraticCurveTo(182, 146, 182, 162); g.lineTo(76, 162); g.closePath(); g.fill(); g.shadowColor = 'transparent'; g.strokeStyle = c1; g.lineWidth = 5; [[104, 132, 118, 124], [114, 140, 128, 132], [124, 148, 138, 140]].forEach(function (l) { g.beginPath(); g.moveTo(l[0], l[1]); g.lineTo(l[2], l[3]); g.stroke(); }); }
+  else if (kind === 'bottle') { rr(116, 78, 24, 14, 4); g.fill(); rr(106, 92, 44, 90, 16); g.fill(); g.shadowColor = 'transparent'; g.fillStyle = c1; g.globalAlpha = 0.55; g.fillRect(106, 128, 44, 22); g.globalAlpha = 1; }
+  else { g.fillRect(100, 78, 9, 100); g.beginPath(); g.moveTo(109, 82); g.lineTo(168, 98); g.lineTo(109, 118); g.closePath(); g.fill(); }
+  var t = new THREE.CanvasTexture(cv); t.anisotropy = 4; t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+var MAP_SPAWNS = [
+  { at: '학생회관', dx: 16, dy: 14, mission: true, label: '에너지몬' },
+  { at: '광개토관', dx: -14, dy: 12, label: '???' }, { at: '대양홀', dx: 18, dy: -14, label: '???' }, { at: '박물관', dx: 16, dy: 12, label: '???' }
+];
+
+function MapStage(host) {
+  var self = this, M = mapPrep(), PAL = MAPPAL[todKey()];
+  this.host = host; this.alive = true; this.t0 = performance.now(); this.last = this.t0; this.tick = 0; this.pick = [];
+  var W = host.clientWidth || 360, H = host.clientHeight || 600;
+  var r = this.r = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+  setupRenderer(r, W, H);
+  r.setClearColor(PAL.fog, 1);
+  var cv = r.domElement; cv.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none';
+  host.insertBefore(cv, host.firstChild);
+  var sc = this.scene = new THREE.Scene();
+  sc.fog = new THREE.Fog(PAL.fog, 230, 700);
+  var cam = this.cam = new THREE.PerspectiveCamera(45, W / H, 20, 2400);
+  sc.add(new THREE.HemisphereLight(PAL.hemiS, PAL.hemiG, PAL.hemiI));
+  var key = new THREE.DirectionalLight(PAL.key, PAL.keyI); key.position.set(-60, 120, 40); sc.add(key);
+
+  var gnd = new THREE.Mesh(new THREE.PlaneGeometry(4000, 4000).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: PAL.ground })); sc.add(gnd);
+  var cPark = new THREE.Color(PAL.park), cPitch = new THREE.Color(PAL.pitch), cWater = new THREE.Color(PAL.water);
+  var aLand = mkAcc();
+  M.w.forEach(function (o) { accPoly(aLand, o.pts, 0.06, cWater); });
+  M.p.forEach(function (o) { accPoly(aLand, o.pts, (o.k === 'pitch' || o.k === 'playground') ? 0.14 : 0.1, (o.k === 'pitch' || o.k === 'playground') ? cPitch : cPark); });
+  sc.add(accToMesh(aLand, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide })));
+
+  var aTr = mkAcc(), tcs = [new THREE.Color(PAL.tree[0]), new THREE.Color(PAL.tree[1])], tn = 0, ts = 7;
+  function trnd() { ts = (ts * 16807) % 2147483647; return (ts - 1) / 2147483646; }
+  M.p.forEach(function (o) {
+    if (o.k !== 'park' && o.k !== 'garden') return;
+    var x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9; o.pts.forEach(function (q) { x0 = Math.min(x0, q[0]); x1 = Math.max(x1, q[0]); y0 = Math.min(y0, q[1]); y1 = Math.max(y1, q[1]); });
+    var step = (x1 - x0) * (y1 - y0) > 200000 ? 26 : 11;
+    for (var x = x0; x < x1; x += step) for (var y = y0; y < y1; y += step) {
+      var px = x + (trnd() - 0.5) * step * 0.8, py = y + (trnd() - 0.5) * step * 0.8;
+      if (tn < 520 && mIn(o.pts, px, py)) { accTree(aTr, px, -py, 0.8 + trnd() * 0.7, tcs[trnd() > 0.5 ? 1 : 0]); tn++; }
+    }
+  });
+  var wid = [1.8, 3.4, 5, 7.5], aCase = mkAcc(), aFill = mkAcc(), cCase = new THREE.Color(PAL.casing);
+  M.r.forEach(function (o) { accStrip(aCase, o.pts, wid[o.t] + 1.5, 0.2, cCase); });
+  M.r.slice().sort(function (a, b) { return a.t - b.t; }).forEach(function (o) { accStrip(aFill, o.pts, wid[o.t], 0.3 + o.t * 0.04, new THREE.Color(PAL.fill[o.t])); });
+  sc.add(accToMesh(aCase, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide })));
+  sc.add(accToMesh(aFill, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide })));
+  sc.add(accToMesh(aTr, new THREE.MeshLambertMaterial({ vertexColors: true })));
+
+  var aB = mkAcc(), base = new THREE.Color(PAL.bld), seed = 11, towerB = null;
+  function rnd() { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }
+  M.b.forEach(function (o) {
+    var h = o.n ? 6 + rnd() * 5 : Math.min(7, 3 + Math.sqrt(o.area) * 0.07 + rnd() * 1.5);
+    if (o.n === '정문' || o.n === '주차빌딩') h = 4;
+    if (o.n === '주차타워') { h = 26; towerB = o; }
+    var col = new THREE.Color().copy(base).offsetHSL((rnd() - 0.5) * 0.04, 0, (rnd() - 0.5) * 0.08);
+    try {
+      var sh = new THREE.Shape(o.pts.map(function (q) { return new THREE.Vector2(q[0], q[1]); }));
+      var g = new THREE.ExtrudeGeometry(sh, { depth: h, bevelEnabled: false }); g.rotateX(-Math.PI / 2);
+      accGeo(aB, g, col, 1.04, 0.78);
+    } catch (e) {}
+  });
+  var bm = new THREE.MeshLambertMaterial({ vertexColors: true }), TK = todKey();
+  var winLit = TK === 'night' ? 0.62 : (TK === 'dusk' ? 0.38 : 0.0), winCol = TK === 'night' ? 'vec3(1.0,0.80,0.42)' : 'vec3(1.0,0.78,0.5)';
+  bm.onBeforeCompile = function (sh) {
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP; varying vec2 vTn; varying float vSide;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWP = (modelMatrix * vec4(transformed, 1.0)).xyz; vTn = vec2(-normal.z, normal.x); vSide = step(abs(normal.y), 0.5);');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP; varying vec2 vTn; varying float vSide;')
+      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n{ float u = dot(vWP.xz, vTn) / 3.2; float v = vWP.y / 3.2; vec2 id = floor(vec2(u, v)); vec2 f = fract(vec2(u, v));\n float w = step(0.18, f.x) * step(f.x, 0.82) * step(0.22, f.y) * step(f.y, 0.78) * vSide;\n float r = fract(sin(dot(id, vec2(12.9898, 78.233))) * 43758.5453);\n float lit = step(1.0 - ' + winLit.toFixed(2) + ', r);\n totalEmissiveRadiance += w * lit * ' + winCol + ' * 0.95;\n diffuseColor.rgb *= 1.0 - w * 0.16; }');
+  };
+  sc.add(accToMesh(aB, bm));
+  if (towerB) { // 대양 타워: 금빛 뾰족 지붕
+    var tr = Math.max(3, Math.sqrt(towerB.area) * 0.62), gold = TK === 'night' ? 0xC9A24A : 0xE8B64C;
+    var roof = new THREE.Mesh(new THREE.ConeGeometry(tr, 12, 4), new THREE.MeshStandardMaterial({ color: gold, emissive: gold, emissiveIntensity: TK === 'day' ? 0.12 : 0.35, flatShading: true }));
+    roof.rotation.y = Math.PI / 4; roof.position.set(towerB.c[0], 26 + 6, -towerB.c[1]); sc.add(roof);
+  }
+
+
+  // 공식 안내도 건물명 라벨
+  var OFFICIAL = {}; '집현관,대양홀,모짜르트홀,군자관,광개토관,이당관,진관홀,용덕관,홍진구조실험센터,세종초등학교,미래교육원 별관,영실관,충무관,율곡관,다산관,주차빌딩,동천관,우정당,박물관,아사달 연못,대양 타워,애지헌,대양 AI 센터,운동장,세종관,학생회관,새날관,무방관'.split(',').forEach(function (n) { OFFICIAL[n] = 1; });
+  var NAMEMAP = {'동천관 학술정보원':'동천관','별관 평생교육원':'미래교육원 별관','주차타워':'대양 타워'};
+  function nameTex(t) {
+    var cv = document.createElement('canvas'); cv.width = 256; cv.height = 72; var g = cv.getContext('2d');
+    g.font = '800 30px "Noto Sans KR",sans-serif'; var w = Math.min(244, g.measureText(t).width + 30);
+    g.fillStyle = 'rgba(255,255,255,.88)'; var x = (256 - w) / 2; g.beginPath(); g.moveTo(x + 18, 14); g.arcTo(x + w, 14, x + w, 58, 18); g.arcTo(x + w, 58, x, 58, 18); g.arcTo(x, 58, x, 14, 18); g.arcTo(x, 14, x + w, 14, 18); g.fill();
+    g.fillStyle = '#3B2A78'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(t, 128, 37);
+    var tx = new THREE.CanvasTexture(cv); tx.colorSpace = THREE.SRGBColorSpace; return tx;
+  }
+  this.bnames = [];
+  M.b.forEach(function (o) {
+    if (!o.n || !OFFICIAL[NAMEMAP[o.n] || o.n] || o.n === '학생회관' || o.n === '광개토관' || o.n === '대양홀') return;
+    var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: nameTex(NAMEMAP[o.n] || o.n), transparent: true, depthTest: false, depthWrite: false, fog: true }));
+    sp.scale.set(24, 6.7, 1); sp.position.set(o.c[0], o.n === '주차타워' ? 31 : 15, -o.c[1]); sp.renderOrder = 20; sc.add(sp); self.bnames.push(sp);
+  });
+  // 스톱
+  this.stops = []; this.labels = []; this.sp = {};
+  if (!mapState.init) { var p0 = mFree(M, 187.4, -122.4, 14); mapState.x = p0[0]; mapState.z = -p0[1]; mapState.init = true; }
+  var gemMat = function (c) { return new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 0.7, flatShading: true }); };
+  MAP_STOPS.forEach(function (s) {
+    var b = M.by[s.id]; if (!b) return;
+    var g = new THREE.Group(), col = new THREE.Color(s.c1), big = s.mission ? 1.2 : 1;
+    var base = new THREE.Mesh(new THREE.RingGeometry(3.6, 5.2, 40), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending })); base.rotation.x = -Math.PI / 2; base.position.y = 0.7; g.add(base);
+    var pulse = new THREE.Mesh(new THREE.RingGeometry(8.5, 9.4, 40), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.5, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending })); pulse.rotation.x = -Math.PI / 2; pulse.position.y = 0.7; g.add(pulse);
+    var fun = new THREE.Mesh(new THREE.CylinderGeometry(3.4, 1.0, 10, 20, 1, true), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.28, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending })); fun.position.y = 5.5; g.add(fun);
+    var spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: badgeTex(s.kind, s.c1, s.c2), transparent: true, depthTest: false, depthWrite: false, fog: false })); spr.scale.set(15 * big, 15 * big, 1); spr.position.y = 15; spr.renderOrder = 30; g.add(spr);
+    if (s.mission) { var zr = new THREE.Mesh(new THREE.RingGeometry(44, 45, 64), new THREE.MeshBasicMaterial({ color: 0xFFD76A, transparent: true, opacity: 0.6, side: THREE.DoubleSide, depthWrite: false })); zr.rotation.x = -Math.PI / 2; zr.position.y = 0.6; g.add(zr); }
+    var pp = mFree(M, b.c[0], b.c[1], 4); self.sp[s.id] = pp; g.position.set(pp[0], 0, -pp[1]); g.scale.setScalar(1.35); g.userData = { kind: 'stop', id: s.id, mission: !!s.mission };
+    sc.add(g); self.stops.push({ g: g, gem: spr, pulse: pulse, c: b.c, s: s }); self.pick.push(g);
+    self.addLabel(s.label, g.position, 2, s.mission ? 'm' : '');
+  });
+  this.missionPos = this.sp['학생회관'] || M.by['학생회관'].c;
+
+  // 몬스터
+  this.spawns = [];
+  MAP_SPAWNS.forEach(function (sp) {
+    var b = M.by[sp.at]; if (!b) return;
+    var base = self.sp[sp.at] || b.c, pf = mFree(M, base[0] + sp.dx, base[1] + sp.dy, 0);
+    var mon = buildMonster(!sp.mission), g = new THREE.Group(); mon.group.scale.setScalar(2.1); mon.group.position.y = 3.2; g.add(mon.group);
+    var ring = new THREE.Mesh(new THREE.RingGeometry(4.6, 5.2, 24), new THREE.MeshBasicMaterial({ color: sp.mission ? 0xFFB534 : 0xFFFFFF, transparent: true, opacity: 0.75, side: THREE.DoubleSide, depthWrite: false })); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.5; g.add(ring);
+    g.position.set(pf[0], 0, -pf[1]); g.scale.setScalar(2.1); g.userData = { kind: 'mon', mission: !!sp.mission, label: sp.label, at: sp.at };
+    sc.add(g); self.spawns.push({ g: g, mon: mon, ring: ring, mission: !!sp.mission }); self.pick.push(g);
+    self.addLabel(sp.label, g.position, 34, sp.mission ? 'm mon' : 'mon');
+  });
+
+  // 아바타
+  var av = this.av = new THREE.Group(), body = new THREE.Group(); av.add(body);
+  function am(c) { return new THREE.MeshStandardMaterial({ color: c, flatShading: true, roughness: 0.75 }); }
+  var parts = [];
+  function ap(geo, mat, x, y, z) { var m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); body.add(m); parts.push(m); return m; }
+  var legL = ap(new THREE.BoxGeometry(0.8, 2, 0.9), am(0x232A7A), -0.5, 1, 0), legR = ap(new THREE.BoxGeometry(0.8, 2, 0.9), am(0x232A7A), 0.5, 1, 0);
+  ap(new THREE.BoxGeometry(2.1, 2.3, 1.3), am(0x6A4FE0), 0, 3.1, 0);
+  ap(new THREE.BoxGeometry(0.7, 2.0, 0.8), am(0x5A41CC), -1.45, 3.1, 0); ap(new THREE.BoxGeometry(0.7, 2.0, 0.8), am(0x5A41CC), 1.45, 3.1, 0);
+  ap(new THREE.BoxGeometry(1.5, 1.7, 0.8), am(0xFFB534), 0, 3.2, -1.0);
+  ap(new THREE.IcosahedronGeometry(1.05, 0), am(0xF2CDB0), 0, 5.1, 0);
+  ap(new THREE.SphereGeometry(1.2, 6, 3, 0, 6.2832, 0, 1.5708), am(0xFFFFFF), 0, 5.35, 0);
+  ap(new THREE.BoxGeometry(1.7, 0.2, 1.3), am(0xE8ECFF), 0, 5.3, 1.2);
+  parts.forEach(function (m, i) { m.material.depthTest = false; m.renderOrder = 20 + i; });
+  this.legs = [legL, legR];
+  this.avRing = new THREE.Mesh(new THREE.RingGeometry(4.6, 5.1, 32), new THREE.MeshBasicMaterial({ color: 0xFFFFFF, transparent: true, opacity: 0.7, side: THREE.DoubleSide, depthWrite: false })); this.avRing.rotation.x = -Math.PI / 2; this.avRing.position.y = 0.45; av.add(this.avRing);
+  var blob = new THREE.Mesh(new THREE.CircleGeometry(2.6, 16), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.25, depthWrite: false })); blob.rotation.x = -Math.PI / 2; blob.position.y = 0.4; av.add(blob);
+  av.scale.setScalar(2.3); av.position.set(mapState.x, 0, mapState.z); this.body = body; sc.add(av);
+  this.mark = new THREE.Mesh(new THREE.RingGeometry(1.6, 2.4, 6), new THREE.MeshBasicMaterial({ color: 0xFFFFFF, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false })); this.mark.rotation.x = -Math.PI / 2; this.mark.position.y = 0.5; this.mark.visible = false; sc.add(this.mark);
+
+  this.ray = new THREE.Raycaster(); this.v3 = new THREE.Vector3();
+  var st = null;
+  cv.addEventListener('pointerdown', function (e) { st = { x: e.clientX, y: e.clientY, lx: e.clientX, moved: false, t: performance.now() }; try { cv.setPointerCapture(e.pointerId); } catch (x) {} });
+  cv.addEventListener('pointermove', function (e) {
+    if (!st) return;
+    if (Math.abs(e.clientX - st.x) + Math.abs(e.clientY - st.y) > 8) st.moved = true;
+    if (st.moved) { mapState.yaw -= (e.clientX - st.lx) * 0.006; }
+    st.lx = e.clientX;
+  });
+  cv.addEventListener('pointerup', function (e) { var s = st; st = null; if (s && !s.moved) self.tap(e.clientX, e.clientY); });
+  cv.addEventListener('pointercancel', function () { st = null; });
+
+  stages.push(this); this._f = this.frame.bind(this); this.raf = requestAnimationFrame(this._f);
+}
+MapStage.prototype.addLabel = function (text, pos, h, cls) {
+  var el = document.createElement('div'); el.className = 'mlab ' + (cls || ''); el.textContent = text;
+  var box = this.host.querySelector('.maplbl'); if (box) box.appendChild(el);
+  this.labels.push({ el: el, pos: pos, h: h });
+};
+MapStage.prototype.resize = function () {
+  var W = this.host.clientWidth, H = this.host.clientHeight; if (!W || !H) return;
+  this.r.setSize(W, H, false); this.cam.aspect = W / H; this.cam.updateProjectionMatrix();
+};
+MapStage.prototype.tap = function (cx, cy) {
+  var b = this.r.domElement.getBoundingClientRect(), nx = ((cx - b.left) / b.width) * 2 - 1, ny = -((cy - b.top) / b.height) * 2 + 1;
+  this.ray.setFromCamera({ x: nx, y: ny }, this.cam);
+  var hits = this.ray.intersectObjects(this.pick, true);
+  if (hits.length) {
+    var o = hits[0].object; while (o && !o.userData.kind) o = o.parent;
+    if (o) {
+      if (o.userData.mission) { openDetail(); return; }
+      openInfo(o.userData.kind, o.userData.id || o.userData.at);
+      return;
+    }
+  }
+  if (mapState.gps === 'on') return;
+  var t = -this.ray.ray.origin.y / this.ray.ray.direction.y;
+  if (t > 0 && isFinite(t)) {
+    mapState.tx = clamp(this.ray.ray.origin.x + this.ray.ray.direction.x * t, -520, 520); mapState.tz = clamp(this.ray.ray.origin.z + this.ray.ray.direction.z * t, -520, 520);
+    this.mark.position.set(mapState.tx, 0.5, mapState.tz); this.mark.scale.setScalar(2.4); this.mark.visible = true;
+  }
+};
+MapStage.prototype.missionDist = function () {
+  var b = this.missionPos; if (!b) return 0;
+  return Math.hypot(mapState.x - b[0], mapState.z + b[1]);
+};
+MapStage.prototype.frame = function (now) {
+  if (!this.alive) return;
+  var dt = Math.min(0.05, (now - this.last) / 1000), t = (now - this.t0) / 1000; this.last = now;
+  var s = mapState;
+  if (s.tx != null) {
+    var dx = s.tx - s.x, dz = s.tz - s.z, d = Math.hypot(dx, dz);
+    if (d < 0.6) { s.tx = null; this.mark.visible = false; this.moving = false; }
+    else { var stp = Math.min(d, 16 * dt); s.x += dx / d * stp; s.z += dz / d * stp; s.heading = Math.atan2(dx, dz); this.moving = true; }
+  } else this.moving = false;
+  this.av.position.set(s.x, 0, s.z);
+  var dh = ((s.heading - this.body.rotation.y + Math.PI * 3) % (Math.PI * 2)) - Math.PI; this.body.rotation.y += dh * 0.2;
+  this.body.position.y = this.moving ? Math.abs(Math.sin(t * 9)) * 0.35 : 0; var sw = this.moving ? Math.sin(t * 9) * 0.6 : 0; this.legs[0].rotation.x = sw; this.legs[1].rotation.x = -sw;
+  var rp = 1 + Math.sin(t * 2.4) * 0.07; this.avRing.scale.set(rp, rp, 1); this.avRing.material.opacity = 0.55 + Math.sin(t * 2.4) * 0.15;
+  this.mark.rotation.z = t * 2;
+  this.stops.forEach(function (o, i) { o.gem.position.y = 15 + Math.sin(t * 1.8 + i) * 0.9; var k = 1 + Math.sin(t * 2.2 + i) * 0.1; o.pulse.scale.set(k, k, 1); o.pulse.material.opacity = 0.5 - (k - 1) * 2.5; });
+  this.spawns.forEach(function (o, i) { o.mon.update(t + i); o.ring.rotation.z = t * 0.6; });
+  // 카메라: 아바타를 따라가며 yaw로 돈다
+  var EL = 0.86, D = 230, y = s.yaw, cx = s.x + Math.sin(y) * Math.cos(EL) * D, cz = s.z + Math.cos(y) * Math.cos(EL) * D, cy = Math.sin(EL) * D;
+  this.cam.position.set(cx, cy, cz); this.cam.lookAt(s.x - Math.sin(y) * 40, 0, s.z - Math.cos(y) * 40);
+  // 이름표
+  var W = this.host.clientWidth, H = this.host.clientHeight, cam = this.cam, v = this.v3;
+  this.labels.forEach(function (L) {
+    v.set(L.pos.x, L.h, L.pos.z).project(cam);
+    if (v.z > 1 || Math.abs(v.x) > 1.15 || Math.abs(v.y) > 1.15) { L.el.style.display = 'none'; return; }
+    L.el.style.display = 'block'; L.el.style.transform = 'translate(-50%,-100%) translate(' + ((v.x * 0.5 + 0.5) * W).toFixed(1) + 'px,' + ((-v.y * 0.5 + 0.5) * H).toFixed(1) + 'px)';
+  });
+  this.tick += dt;
+  if (this.tick > 0.25) { this.tick = 0; mapUpdateChip(this.missionDist()); }
+  if (!(isOpen('mon') || isOpen('ar') || isOpen('cam') || isOpen('splash'))) this.r.render(this.scene, this.cam);
+  this.raf = requestAnimationFrame(this._f);
+};
+MapStage.prototype.dispose = function () {
+  this.alive = false; cancelAnimationFrame(this.raf);
+  this.scene.traverse(function (o) { if (o.geometry) o.geometry.dispose(); if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(function (m) { m.dispose(); }); });
+  this.r.dispose(); try { this.r.forceContextLoss(); } catch (e) {}
+  if (this.r.domElement.parentNode) this.r.domElement.parentNode.removeChild(this.r.domElement);
+  this.labels.forEach(function (L) { if (L.el.parentNode) L.el.parentNode.removeChild(L.el); });
+  var i = stages.indexOf(this); if (i >= 0) stages.splice(i, 1);
+};
+function mountMap(host) { try { mapStage = new MapStage(host); } catch (e) { mapStage = null; host.insertAdjacentHTML('afterbegin', '<p class="mapfail">3D 지도를 그리지 못했어요. 아래 카드로 미션을 확인해 주세요.</p>'); try { console.error(e); } catch (x) {} } }
+function unmountMap() { if (mapStage) { mapStage.dispose(); mapStage = null; } }
+function mapUpdateChip(d) {
+  var el = $('mapDist'); if (!el) return;
+  el.textContent = d < 45 ? '학생회관에 도착했어요' : '학생회관까지 ' + (d >= 1000 ? (d / 1000).toFixed(1) + 'km' : Math.round(d) + 'm');
+  var h = $('mapHint'); if (h) h.textContent = (mapState.gps === 'on' || !IS_DEMO) ? '' : '지도를 눌러 걸어 보세요 (시연)';
+  var b = $('mapLoc'); if (b) { b.classList.toggle('on', mapState.gps === 'on'); b.setAttribute('aria-label', { off: '내 위치 켜기', wait: '위치 찾는 중', on: '내 위치 사용 중', denied: '위치 허용 필요', outside: '캠퍼스 밖 (시연)' }[mapState.gps]); }
+}
+function mapLocate() {
+  if (mapState.watch != null) { try { navigator.geolocation.clearWatch(mapState.watch); } catch (e) {} mapState.watch = null; mapState.gps = 'off'; return; }
+  if (!navigator.geolocation) { mapState.gps = 'denied'; toast('이 기기에서는 위치를 쓸 수 없어요.'); return; }
+  mapState.gps = 'wait'; mapState.said = false;
+  var C = MAPDATA.c, kx = 111320 * Math.cos(C[0] * D2R), ky = 110574;
+  mapState.watch = navigator.geolocation.watchPosition(function (p) {
+    var x = (p.coords.longitude - C[1]) * kx, n = (p.coords.latitude - C[0]) * ky;
+    if (Math.abs(x) > 520 || Math.abs(n) > 520) { mapState.gps = 'outside'; if (!mapState.said) { mapState.said = true; toast('지금 위치는 세종대 지도 밖이에요. 시연 위치로 보여드려요.'); } return; }
+    mapState.gps = 'on'; mapState.tx = x; mapState.tz = -n;
+  }, function (e) {
+    try { navigator.geolocation.clearWatch(mapState.watch); } catch (x) {} mapState.watch = null; mapState.gps = 'denied';
+    toast('위치를 받지 못했어요. 허용했는지 확인해 주세요. 지금은 시연 걷기로 보여요.');
+  }, { enableHighAccuracy: true, maximumAge: 2000, timeout: 20000 });
+}
+function viewMap() {
+  var st = todayStage(), done = st === 'done' ? 1 : 0, nm = me ? me.name : '게스트';
+  var I = function (d) { return '<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + d + '</svg>'; };
+  var segs = ''; for (var i = 0; i < 10; i++) segs += '<i class="' + (i < xpOn() ? 'on' : '') + '"></i>';
+  return '<section class="mapwrap"><div class="maphost" id="mapHost"><div class="maplbl"></div>' +
+    '<div class="mtop"><div class="logo"><b>건강몬</b><em>GO</em></div>' +
+    '<button type="button" class="mpill" data-act="monopen"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M6 3v18h2v-7h9l-2-4 2-4H8V3z"/></svg>오늘의 미션 (' + done + '/1)<span>›</span></button>' +
+    '<button type="button" class="mround" data-act="mapbell" aria-label="알림">' + I('<path d="M6 8a6 6 0 0 1 12 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10 21a2 2 0 0 0 4 0"/>') + '<i class="dot"></i></button>' +
+    '<button type="button" class="mround" data-go="me" aria-label="내 정보">' + I('<circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2L10 21h4l.5-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.2z"/>') + '</button></div>' +
+    '<div class="mdist" id="mapDist"></div>' +
+    '<div class="mside"><button type="button" class="mround big" data-act="mapnorth" aria-label="북쪽으로 돌리기">' + I('<path d="M12 3l4 16-4-3-4 3z" fill="currentColor"/>') + '</button>' +
+    '<button type="button" class="mround big" id="mapLoc" data-act="locate" aria-label="내 위치 켜기">' + I('<circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2" fill="currentColor"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>') + '</button></div>' +
+    '<div class="maphint" id="mapHint"></div>' +
+    '<div class="mbot"><button type="button" class="mprof" data-go="me"><span class="av">' + esc(nm.charAt(0)) + '</span><span class="pi"><small>Lv.' + level() + '</small><b>' + esc(nm) + '</b><span class="xp">' + segs + '</span></span></button>' +
+    '<button type="button" class="mmain" data-act="mapmain" aria-label="미션 시작"><span><i></i></span></button>' +
+    '<div class="mmenu"><button type="button" data-go="gift">' + I('<rect x="3" y="8" width="18" height="13" rx="2"/><path d="M12 8v13M3 13h18M12 8c-2-4-6-3-5 0M12 8c2-4 6-3 5 0"/>') + '<span>보상</span></button>' +
+    '<button type="button" data-go="dex">' + I('<path d="M4 4h12a4 4 0 0 1 4 4v12H8a4 4 0 0 1-4-4z"/><circle cx="12" cy="12" r="3"/>') + '<span>도감</span></button>' +
+    '<button type="button" data-act="monopen">' + I('<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V2h6v2M9 11l2 2 4-4M9 17h6"/>') + '<span>미션</span></button></div></div>' +
+    '<div class="mapcr">© OpenStreetMap contributors</div></div></section>';
+}
+
+var STOP_INFO = {
+  '학생회관': ['운동 인증 거점', '운동하는 모습을 카메라로 바로 찍어 올리는 거점이에요.'],
+  '광개토관': ['걷기 거점', '이 근처까지 걸어와서 도착을 확인하는 거점이에요.'],
+  '대양홀': ['물 마시기 거점', '물 마시는 모습을 인증하는 거점이에요.'],
+  '정문': ['출석 거점', '캠퍼스에 들어오면 도착을 확인하는 거점이에요.']
+};
+function stopDist(id) {
+  var p = mapStage && mapStage.sp && mapStage.sp[id]; if (!p) return null;
+  return Math.round(Math.hypot(mapState.x - p[0], mapState.z + p[1]));
+}
+function openInfo(kind, id) {
+  var h;
+  if (kind === 'stop') {
+    var inf = STOP_INFO[id] || ['거점', ''], d = stopDist(id);
+    h = '<div class="info"><h3>' + id + '</h3><div class="sub"><span class="tagx">' + inf[0] + '</span>' + (d != null ? '여기서 약 ' + d + ' m' : '') + '</div>' +
+      '<div class="box">' + inf[1] + '</div><div class="box">아직 이 거점의 미션은 열리지 않았어요. 지금은 학생회관의 운동 인증 미션만 할 수 있어요.</div>' +
+      '<button type="button" class="btn" data-act="infoclose">닫기</button></div>';
+  } else {
+    h = '<div class="info"><h3>???</h3><div class="sub">아직 만나지 못한 몬스터</div>' +
+      '<div class="box">' + (id || '이 근처') + ' 근처에 숨어 있어요. 먼저 오늘의 미션을 해 보세요.</div>' +
+      '<button type="button" class="btn" data-act="infoclose">닫기</button></div>';
+  }
+  $('infoBody').innerHTML = h; $('infoSheet').classList.add('open');
+}
+function openNews() {
+  var ms = todayStage(), line = ms === 'none' ? '오늘의 미션을 아직 시작하지 않았어요. 학생회관에서 운동 인증을 해 보세요.' : (ms === 'approved' ? '운영자가 승인했어요. 가운데 번개 버튼으로 몬스터를 포획해 보세요.' : (ms === 'done' ? '오늘의 미션을 모두 끝냈어요.' : '인증 사진을 운영자가 확인하고 있어요.'));
+  $('infoBody').innerHTML = '<div class="info"><h3>새 소식</h3><div class="nl"><b>오늘의 미션</b>' + line + '</div><div class="nl"><b>건강몬 GO에 오신 걸 환영해요</b>캠퍼스를 걸으며 거점을 찾아 보세요.</div><button type="button" class="btn" data-act="infoclose" style="margin-top:14px">닫기</button></div>';
+  $('infoSheet').classList.add('open');
+}
+function openDetail() { $('mon').classList.add('open'); renderDetail(); }
+function closeDetail() { $('mon').classList.remove('open'); unmountHero(); $('mon').innerHTML = ''; }
+function renderDetail() {
+  unmountHero();
+  $('mon').innerHTML = '<button type="button" class="monback" data-act="monclose" aria-label="지도로 돌아가기">← 지도</button>' + viewMonster();
+  if (HAS3D && $('heroStage')) mountHero($('heroStage'));
+}
+
+/* ===== 오늘 미션 상태 ===== */
+function sameDay(str) { var t = Date.parse(str); if (isNaN(t)) return true; var a = new Date(t), b = new Date(); return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate(); }
+function todayProof() {
+  var list = data.proofs.filter(function (p) { return p.missionId === 'gym15' && sameDay(p.submittedAt); });
+  return list[list.length - 1];
+}
+function todayStage() {
+  var last = todayProof();
+  if (!last) return 'none';
+  if (last.status === 'PENDING') return 'pending';
+  if (last.status === 'APPROVED') return last.captured ? 'done' : 'approved';
+  return 'none';
+}
+function level() { return 1 + Math.floor(data.points / 300); }
+function xpOn() { return Math.floor((data.points % 300) / 30); }
+
+/* ===== 화면 ===== */
+var ICON = {
+  home: '<path d="M3 11 12 3l9 8v10H3z"/><path d="M9 21v-7h6v7"/>',
+  go: '<path d="M12 2 22 12 12 22 2 12z"/><path d="M12 8v8M8 12h8"/>',
+  dex: '<path d="M12 2l8 4.5v9L12 20l-8-4.5v-9z"/><path d="M12 11v9M4 6.5 12 11l8-4.5"/>',
+  gift: '<path d="M3 9h18v4H3z"/><path d="M5 13v8h14v-8M12 9v12M12 9 8 4M12 9l4-5"/>',
+  me: '<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/>'
+};
+var TABS = [['home', '지도', 'home'], ['go', '탐험', 'go'], ['dex', '도감', 'dex'], ['gift', '보상', 'gift'], ['me', '내 정보', 'me']];
+
+function renderHud() {
+  var segs = ''; for (var i = 0; i < 10; i++) segs += '<i class="' + (i < xpOn() ? 'on' : '') + '"></i>';
+  $('hud').innerHTML = '<div class="lv"><div><small>Lv</small>' + level() + '</div></div>' +
+    '<div class="who"><b>' + esc(me ? me.name : '게스트') + '</b><div class="xp">' + segs + '</div></div>' +
+    '<div class="wallet"><span class="chip">' + data.coins + ' 코인</span><span class="chip p">' + data.points + ' 포인트</span></div>';
+}
+function renderNav() {
+  $('nav').innerHTML = TABS.map(function (t) {
+    return '<button type="button" data-tab="' + t[0] + '" class="' + (tab === t[0] ? 'on' : '') + '"' + (tab === t[0] ? ' aria-current="page"' : '') + '><svg viewBox="0 0 24 24">' + ICON[t[2]] + '</svg>' + t[1] + '</button>';
+  }).join('');
+}
+
+function rail(stage) {
+  var steps = [['운동', 'none'], ['인증', 'none'], ['승인', 'pending'], ['포획', 'approved']];
+  var idx = { none: 1, pending: 2, approved: 3, done: 4 }[stage];
+  return '<div class="rail">' + steps.map(function (s, i) {
+    var cls = stage === 'done' ? 'done' : (i < idx ? 'done' : (i === idx ? 'now' : ''));
+    if (stage === 'none' && i === 0) cls = 'done';
+    if (stage === 'none' && i === 1) cls = 'now';
+    return '<div class="' + cls + '"><em>' + (i + 1) + '</em>' + s[0] + '</div>';
+  }).join('') + '</div>';
+}
+
+function viewMonster() {
+  var st = todayStage();
+  var prog = { none: 1, pending: 2, approved: 3, done: 4 }[st];
+  var segs = ''; for (var i = 0; i < 4; i++) segs += '<i class="' + (i < prog - 1 || st === 'done' ? 'on' : (i === prog - 1 ? 'now' : '')) + '"></i>';
+  var btn = {
+    none: '<button class="btn" type="button" data-act="verify">카메라로 인증하기</button>',
+    pending: '<button class="btn ghost" type="button" disabled>운영자 승인을 기다려요</button>',
+    approved: '<button class="btn gold" type="button" data-act="capture">에너지몬 포획하기</button>',
+    done: '<button class="btn ghost" type="button" disabled>오늘 미션 완료</button>'
+  }[st];
+  var note = { none: '운동한 모습을 카메라로 찍으면 운영자가 확인해요.', pending: '사진이 접수됐어요. 승인되면 여기서 포획할 수 있어요.', approved: '승인됐어요. 지금 에너지몬을 잡을 수 있어요.', done: '내일 또 만나요. 도감에서 모은 몬스터를 볼 수 있어요.' }[st];
+  var have = data.catches.length ? 1 : 0;
+  var chips = '<button class="stagebtn" type="button" data-act="ar">AR로 보기</button>' +
+    (HAS3D && needMotionPerm() && motion.state !== 'on' ? '<button class="stagebtn tilt" type="button" data-act="motion">기울여 보기</button>' : '');
+  var svg = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="miter">' + ICON.dex + '</svg>';
+  return '<section class="show"><div class="stage" id="heroStage"><div class="bgfx"></div>' + (HAS3D ? '' : monster()) + chips + '</div>' +
+    '<div class="card panel"><div class="in"><h1 class="name">에너지몬</h1><p class="sub">학생회관 운동 15분</p>' +
+    '<div class="prog">' + segs + '</div><p class="state">' + note + '</p>' +
+    '<div class="stats"><div><b>번개</b><span>속성</span></div><div><b>운동</b><span>미션</span></div><div><b class="gold">100P</b><span>보상</span></div></div>' +
+    rail(st) + btn + '</div></div></section>' +
+    '<section class="sec"><h2>도감</h2><div class="rows"><div class="row on" data-go="dex"><div class="ico">' + svg + '</div><div class="t"><b>몬스터 ' + have + ' / ' + (LOCKED + 1) + '마리</b><span class="muted">미션을 인증할 때마다 새 몬스터가 열려요.</span></div></div></div></section>';
+}
+
+function viewGo() {
+  var st = todayStage();
+  var stTag = { none: '<span class="tag">인증 전</span>', pending: '<span class="tag wait">승인 대기</span>', approved: '<span class="tag ok">포획 가능</span>', done: '<span class="tag ok">완료</span>' }[st];
+  var svg = function (k) { return '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="miter">' + ICON[k] + '</svg>'; };
+  return '<h1>캠퍼스 탐험</h1><p class="muted" style="margin-top:6px">장소를 골라 미션을 시작해요.</p>' +
+    '<div class="rows" style="margin-top:16px">' +
+    '<div class="row on" data-go="home"><div class="ico">' + svg('home') + '</div><div class="t"><b>학생회관 운동 15분</b><span class="muted">카메라 인증, 운영자 승인</span></div>' + stTag + '</div>' +
+    '<div class="row"><div class="ico">' + svg('go') + '</div><div class="t"><b>운동장 걷기</b><span class="muted">걸으면 몬스터가 나타나요</span></div><span class="tag">곧 열려요</span></div>' +
+    '<div class="row"><div class="ico">' + svg('go') + '</div><div class="t"><b>클라이밍장</b><span class="muted">특별 몬스터 미션</span></div><span class="tag">곧 열려요</span></div>' +
+    '</div>';
+}
+
+function viewDex() {
+  var got = data.catches.length ? 1 : 0, cells = '';
+  cells += got ? '<div class="slot have">' + pic(false) + '<b>에너지몬</b></div>' : '<div class="slot lock">' + pic(true) + '<b>???</b></div>';
+  for (var i = 0; i < LOCKED; i++) cells += '<div class="slot lock">' + pic(true) + '<b>???</b></div>';
+  return '<h1>도감</h1><p class="muted" style="margin-top:6px">' + got + ' / ' + (LOCKED + 1) + '마리 만났어요.</p><div class="dex" style="margin-top:16px">' + cells + '</div>';
+}
+
+function viewGift() {
+  var need = 300, on = Math.min(10, Math.floor(data.coins / 30));
+  var g = ''; for (var i = 0; i < 10; i++) g += '<i class="' + (i < on ? 'on' : '') + '"></i>';
+  var can = data.coins >= need;
+  var hist = data.redemptions.length ? '<div class="rows">' + data.redemptions.slice().reverse().map(function (r) {
+    return '<div class="row"><div class="t"><b>학식 쿠폰</b><span class="muted">' + r.cost + '코인 사용</span></div><span class="tag ' + (String(r.status).toUpperCase() === 'DONE' ? 'ok' : 'wait') + '">' + (String(r.status).toUpperCase() === 'DONE' ? '지급 완료' : '처리 중') + '</span></div>';
+  }).join('') + '</div>' : '<p class="muted">아직 교환한 보상이 없어요.</p>';
+  var label = !can ? (need - data.coins) + '코인 더 모으면 교환할 수 있어요' : (me && me.studentId ? '학식 쿠폰으로 교환하기' : '학번 연결하고 교환하기');
+  return '<h1>보상</h1>' +
+    '<section class="panel" style="margin-top:14px"><div style="padding:18px"><p class="muted">내 코인</p><div class="coin"><strong>' + data.coins + '</strong><span class="muted">/ ' + need + '</span></div><div class="gauge">' + g + '</div>' +
+    '<h2 style="font-size:18px">학식 1,000원 쿠폰</h2><p class="muted">300코인으로 바꿀 수 있어요.</p>' +
+    '<button class="btn ' + (can ? 'gold' : 'ghost') + '" type="button" data-act="redeem"' + (can ? '' : ' disabled') + '>' + label + '</button></div></section>' +
+    '<section class="sec"><h2>교환 내역</h2>' + hist + '</section>';
+}
+
+function viewMe() {
+  var linked = me && me.studentId;
+  var masked = linked ? me.studentId.slice(0, 2) + '****' + me.studentId.slice(-2) : '';
+  return '<h1>내 정보</h1>' +
+    '<section class="panel" style="margin-top:14px"><div style="padding:18px"><h2 style="font-size:18px">' + (linked ? esc(me.name) + ' 님' : '게스트로 플레이 중') + '</h2>' +
+    '<p class="muted" style="margin-top:4px">' + (linked ? '학번 ' + esc(masked) + ' 연결됨. 보상을 교환할 수 있어요.' : '지금 기록은 이 기기에 저장돼요. 학번을 연결하면 보상을 교환할 수 있어요.') + '</p>' +
+    (linked ? '' : '<button class="btn" type="button" data-act="link">학번 연결하기</button>') + '</div></section>' +
+    '<section class="sec"><h2>알아두세요</h2><div class="rows">' +
+    '<div class="row"><div class="t"><b>인증 사진</b><span class="muted">미션 인증 사진은 운영자 확인에만 쓰여요.</span></div></div>' +
+    '<div class="row"><div class="t"><b>포인트</b><span class="muted">운영자 승인 후에만 쌓여요.</span></div></div></div></section>';
+}
+
+function render() {
+  var v = { home: viewMap, go: viewGo, dex: viewDex, gift: viewGift, me: viewMe }[tab];
+  unmountHero(); unmountMap();
+  $('view').className = tab === 'home' ? 'map' : '';
+  $('hud').style.display = $('nav').style.display = tab === 'home' ? 'none' : '';
+  $('view').innerHTML = v();
+  $('view').scrollTop = 0;
+  renderHud(); renderNav();
+  if (tab === 'home') { if (HAS3D) mountMap($('mapHost')); else $('mapHost').insertAdjacentHTML('afterbegin', '<p class="mapfail">3D 지도를 불러오지 못했어요. 아래 카드로 미션을 확인해 주세요.</p>'); mapUpdateChip(mapStage ? mapStage.missionDist() : 0); }
+  if (isOpen('mon')) renderDetail();
+}
+
+/* ===== 동작 ===== */
+function busy(on) { document.body.style.cursor = on ? 'progress' : ''; }
+async function refresh(quiet) {
+  if (!me) return;
+  try { data = await api('getGameState', me.userId); }
+  catch (e) {
+    if (/NEED_LOGIN/.test(e.message)) { me = null; try { localStorage.removeItem(KEY); } catch (x) {} openSplash(); return; }
+    if (!quiet) toast(e.message);
+  }
+  render();
+}
+async function startGuest() {
+  var b = $('startBtn'); b.disabled = true; b.textContent = '준비 중...';
+  try {
+    var r = await api('startGuest');
+    me = { userId: r.userId, name: r.name || '게스트', studentId: r.studentId || '' };
+    save(); closeSplash();
+    await refresh(false);
+  } catch (e) { toast(e.message); }
+  b.disabled = false; b.textContent = '바로 시작하기';
+}
+
+/* 카메라 인증 */
+var cam = { stream: null, challenge: null, timer: null, shot: null };
+async function openCamera() {
+  var L = $('cam'); L.classList.add('open');
+  L.innerHTML = '<div class="state muted">카메라를 켜는 중이에요...</div>';
+  try {
+    cam.challenge = await api('issueProofChallenge', me.userId, 'gym15');
+  } catch (e) { closeCamera(); toast(e.message); return; }
+  var feed = '';
+  if (IS_DEMO) {
+    feed = '<div class="feed"></div>';
+  } else {
+    try {
+      cam.stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: 'environment' } } });
+      feed = '<video class="feed" id="vid" autoplay muted playsinline></video>';
+    } catch (e) {
+      L.innerHTML = '<div class="top"><button class="x" type="button" data-act="camclose" aria-label="닫기">✕</button></div><div class="state"><p style="color:var(--bad)">카메라를 켜지 못했어요.</p><p class="muted" style="margin-top:6px">브라우저의 카메라 권한을 허용한 뒤 다시 눌러 주세요. 오류: ' + esc(e.name || e.message) + '</p></div>';
+      return;
+    }
+  }
+  var code = cam.challenge.token.slice(-4).toUpperCase();
+  L.innerHTML = feed + '<div class="top"><button class="x" type="button" data-act="camclose" aria-label="닫기">✕</button><div class="code"><b>' + code + '</b><span id="left">남은 시간 2:00</span></div></div>' +
+    '<div class="frame"><i></i><i></i><i></i><i></i></div><p class="hint">운동 중인 모습이나 운동 장소가 보이게 찍어 주세요.' + (IS_DEMO ? '<br>(시안 화면이라 실제 카메라는 켜지지 않아요)' : '') + '</p>' +
+    '<div class="bar"><button class="shutter" type="button" data-act="shoot" aria-label="촬영"></button></div>';
+  if (!IS_DEMO) { var v = $('vid'); v.srcObject = cam.stream; v.play().catch(function () {}); }
+  clearInterval(cam.timer);
+  cam.timer = setInterval(function () {
+    var s = Math.max(0, Math.round((cam.challenge.expiresAt - Date.now()) / 1000)), el = $('left');
+    if (el) el.textContent = '남은 시간 ' + Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2);
+    if (s <= 0) { closeCamera(); toast('시간이 지났어요. 카메라를 다시 켜 주세요.'); }
+  }, 500);
+}
+function closeCamera() {
+  clearInterval(cam.timer);
+  if (cam.stream) cam.stream.getTracks().forEach(function (t) { t.stop(); });
+  cam.stream = null; $('cam').classList.remove('open'); $('cam').innerHTML = '';
+}
+function shoot() {
+  var c = document.createElement('canvas'), ctx;
+  if (IS_DEMO) { c.width = 640; c.height = 480; ctx = c.getContext('2d'); ctx.fillStyle = '#2F3FB8'; ctx.fillRect(0, 0, 640, 480); }
+  else {
+    var v = $('vid'); if (!v || !v.videoWidth) { toast('카메라 화면이 아직 준비되지 않았어요.'); return; }
+    var k = Math.min(1, 960 / v.videoWidth); c.width = Math.round(v.videoWidth * k); c.height = Math.round(v.videoHeight * k);
+    ctx = c.getContext('2d'); ctx.drawImage(v, 0, 0, c.width, c.height);
+  }
+  cam.shot = { url: c.toDataURL('image/jpeg', 0.8), at: Date.now() };
+  var L = $('cam');
+  L.innerHTML = '<img class="feed" alt="촬영한 인증 사진" src="' + cam.shot.url + '"><div class="top"><button class="x" type="button" data-act="camclose" aria-label="닫기">✕</button></div><div style="flex:1"></div>' +
+    '<div class="bar" style="flex-direction:column;align-items:stretch;gap:0"><button class="btn gold" type="button" data-act="submit">이 사진으로 제출하기</button><button class="btn ghost" type="button" data-act="retake" style="margin-top:10px">다시 찍기</button></div>';
+}
+async function submitShot() {
+  var b = document.querySelector('[data-act=submit]'); if (b) { b.disabled = true; b.textContent = '제출 중...'; }
+  try {
+    await api('submitProof', me.userId, 'gym15', cam.shot.url, cam.challenge.token, cam.shot.at);
+    closeCamera(); toast('제출했어요. 운영자가 확인하면 알려 드릴게요.'); await refresh(true);
+  } catch (e) { if (b) { b.disabled = false; b.textContent = '이 사진으로 제출하기'; } toast(e.message); }
+}
+function capture() { openAR(true); }
+async function redeem() {
+  if (!me.studentId) { openLink(); return; }
+  try { await api('redeemReward', me.userId); toast('교환을 신청했어요. 운영자가 처리하면 알려 드릴게요.'); }
+  catch (e) { toast(e.message); }
+  await refresh(true);
+}
+
+/* 학번 연결 */
+var CONSENT = '개인정보 수집·이용에 동의해요. 수집 항목은 학번과 이름, 이용 목적은 보상 지급 확인, 보관은 시범운영이 끝날 때까지예요.';
+function openLink() {
+  $('linkBody').innerHTML = '<h2>학번 연결하기</h2><p class="muted" style="margin-top:4px">보상을 받으려면 학번과 이름이 필요해요. 지금까지 모은 기록은 그대로 이어져요.</p>' +
+    '<label class="field">학번<input type="tel" id="lkSid" inputmode="numeric" maxlength="8" autocomplete="off" placeholder="숫자 8자리"></label>' +
+    '<label class="field">이름<input type="text" id="lkName" maxlength="20" autocomplete="off"></label>' +
+    '<label class="field">PIN (다른 기기에서 로그인할 때 써요)<input type="password" id="lkPin" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="숫자 4~6자리"></label>' +
+    '<label class="agree"><input type="checkbox" id="lkOk"><span>' + esc(CONSENT) + '</span></label>' +
+    '<div class="err" id="lkErr" role="alert"></div>' +
+    '<button class="btn" type="button" data-act="linkgo">학번 연결하기</button><button class="btn ghost" type="button" data-act="linkclose" style="margin-top:10px">나중에 할게요</button>';
+  $('linkSheet').classList.add('open');
+}
+async function doLink() {
+  var sid = $('lkSid').value.trim(), name = $('lkName').value.trim(), pin = $('lkPin').value, err = $('lkErr');
+  if (!/^\d{8}$/.test(sid)) { err.textContent = '학번은 숫자 8자리로 입력해 주세요.'; return; }
+  if (name.length < 2) { err.textContent = '이름을 입력해 주세요.'; return; }
+  if (!/^\d{4,6}$/.test(pin)) { err.textContent = 'PIN은 숫자 4~6자리로 입력해 주세요.'; return; }
+  if (!$('lkOk').checked) { err.textContent = '개인정보 수집·이용에 동의해야 연결할 수 있어요.'; return; }
+  try {
+    var r = await api('linkStudent', me.userId, sid, name, pin, true);
+    me.studentId = r.studentId; me.name = r.name; save();
+    $('linkSheet').classList.remove('open'); toast('학번을 연결했어요.'); render();
+  } catch (e) { err.textContent = e.message; }
+}
+
+/* ===== 이벤트 ===== */
+document.addEventListener('click', function (e) {
+  var t = e.target.closest('[data-tab],[data-act],[data-go]'); if (!t) return;
+  if (t.dataset.tab) { tab = t.dataset.tab; render(); return; }
+  if (t.dataset.go) { tab = t.dataset.go; render(); return; }
+  var a = t.dataset.act;
+  if (a === 'verify') openCamera();
+  else if (a === 'camclose') closeCamera();
+  else if (a === 'shoot') shoot();
+  else if (a === 'retake') { closeCamera(); openCamera(); }
+  else if (a === 'submit') submitShot();
+  else if (a === 'capture') capture();
+  else if (a === 'monopen') openDetail();
+  else if (a === 'mapbell') openNews();
+  else if (a === 'infoclose') $('infoSheet').classList.remove('open');
+  else if (a === 'mapmain') { var ms = todayStage(); if (ms === 'none') openCamera(); else if (ms === 'approved') capture(); else openDetail(); }
+  else if (a === 'monclose') closeDetail();
+  else if (a === 'mapnorth') mapState.yaw = 0;
+  else if (a === 'locate') mapLocate();
+  else if (a === 'ar') openAR(false);
+  else if (a === 'arclose') closeAR();
+  else if (a === 'artoggle') toggleArCamera();
+  else if (a === 'arcatch') arCatch();
+  else if (a === 'motion') { enableMotion().then(function () { t.remove(); }); }
+  else if (a === 'redeem') redeem();
+  else if (a === 'link') openLink();
+  else if (a === 'linkgo') doLink();
+  else if (a === 'linkclose') $('linkSheet').classList.remove('open');
+});
+$('startBtn').addEventListener('click', startGuest);
+if (!needMotionPerm()) enableMotion();
+
+/* 시안 모드 전용: 상태 바꿔 보기 */
+if (IS_DEMO) {
+  var d = document.createElement('div'); d.className = 'demo'; if (!/[?&]demo=1/.test(location.search)) d.style.display = 'none';
+  d.innerHTML = '<span>시안</span><button data-d="new">처음</button><button data-d="pend">승인대기</button><button data-d="appr">승인됨</button><button data-d="done">완료</button><button data-d="rich">코인300</button><span>위치</span><button data-m="gate">정문</button><button data-m="gym">학생회관</button><span>시간</span><button data-t="auto">자동</button><button data-t="day">낮</button><button data-t="dusk">노을</button><button data-t="night">밤</button>';
+  $('app').appendChild(d);
+  d.addEventListener('click', function (e) {
+    var mk = e.target.dataset.m;
+    if (mk) { var sp0 = mapStage && mapStage.sp[mk === 'gate' ? '정문' : '학생회관']; if (sp0) { mapState.x = sp0[0] - 18; mapState.z = -sp0[1] + 10; mapState.tx = null; } return; }
+    var tk = e.target.dataset.t;
+    if (tk) { todForce = tk === 'auto' ? null : tk; applyTod(); if (ar && ar.stage) { var wasAr = true; closeAR(); } render(); return; }
+    var k = e.target.dataset.d; if (!k) return;
+    var sub = function (s, cap) { return { id: 'x', missionId: 'gym15', status: s, captured: cap, submittedAt: new Date().toString() }; };
+    ds = { proofs: [], catches: [], redemptions: [], coins: 0, points: 0 };
+    if (k === 'pend') ds.proofs = [sub('PENDING', false)];
+    if (k === 'appr') ds.proofs = [sub('APPROVED', false)];
+    if (k === 'done') { ds.proofs = [sub('APPROVED', true)]; ds.catches = [{ missionId: 'gym15', monster: '에너지몬', coins: 50, points: 100 }]; ds.coins = 50; ds.points = 100; }
+    if (k === 'rich') { ds.proofs = [sub('APPROVED', true)]; ds.catches = [{ missionId: 'gym15', monster: '에너지몬', coins: 50, points: 100 }]; ds.coins = 320; ds.points = 640; ds.redemptions = [{ rewardId: 'cafeteria1000', cost: 300, status: 'DONE' }]; }
+    refresh(true);
+  });
+}
+
+applyTod();
+load();
+if (!me) openSplash();
+render();
+if (me) refresh(true);
+</script>
+</body>
+</html>
